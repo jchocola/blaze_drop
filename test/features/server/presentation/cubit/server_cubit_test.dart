@@ -3,10 +3,14 @@ import 'dart:async';
 import 'package:blaze_drop/core/config/app_config.dart';
 import 'package:blaze_drop/core/config/settings_repository.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
+import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_shared_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/stop_server_use_case.dart';
@@ -32,6 +36,13 @@ class _MockWatchClients extends Mock implements WatchConnectedClientsUseCase {}
 class _MockWatchUploads extends Mock implements WatchUploadsUseCase {}
 
 class _MockListFiles extends Mock implements ListSharedFilesUseCase {}
+
+class _MockPickHostFiles extends Mock implements PickHostFilesUseCase {}
+
+class _MockPublishFiles extends Mock implements PublishFilesUseCase {}
+
+class _MockDownloadSharedFile extends Mock
+    implements DownloadSharedFileUseCase {}
 
 class _MockSettingsRepository extends Mock implements SettingsRepository {}
 
@@ -62,6 +73,12 @@ const _sharedFile = ServerSharedFile(
   size: 100,
 );
 
+const _hostFile = HostPublishFile(
+  name: 'deploy.zip',
+  path: '/tmp/deploy.zip',
+  size: 42,
+);
+
 void main() {
   group('ServerCubit', () {
     late _MockStartServer startServer;
@@ -71,6 +88,9 @@ void main() {
     late _MockWatchClients watchClients;
     late _MockWatchUploads watchUploads;
     late _MockListFiles listFiles;
+    late _MockPickHostFiles pickHostFiles;
+    late _MockPublishFiles publishFiles;
+    late _MockDownloadSharedFile downloadSharedFile;
     late _MockSettingsRepository settingsRepository;
     late StreamController<ServerSession> statusController;
     late StreamController<List<ConnectedClient>> clientsController;
@@ -84,6 +104,9 @@ void main() {
       watchClients = _MockWatchClients();
       watchUploads = _MockWatchUploads();
       listFiles = _MockListFiles();
+      pickHostFiles = _MockPickHostFiles();
+      publishFiles = _MockPublishFiles();
+      downloadSharedFile = _MockDownloadSharedFile();
       settingsRepository = _MockSettingsRepository();
       statusController = StreamController<ServerSession>.broadcast();
       clientsController =
@@ -102,6 +125,9 @@ void main() {
       when(
         () => watchUploads.execute(),
       ).thenAnswer((_) => uploadsController.stream);
+      when(
+        () => listFiles.execute(),
+      ).thenAnswer((_) async => const [_sharedFile]);
     });
 
     tearDown(() async {
@@ -119,6 +145,9 @@ void main() {
         watchConnectedClientsUseCase: watchClients,
         watchUploadsUseCase: watchUploads,
         listSharedFilesUseCase: listFiles,
+        pickHostFilesUseCase: pickHostFiles,
+        publishFilesUseCase: publishFiles,
+        downloadSharedFileUseCase: downloadSharedFile,
         settingsRepository: settingsRepository,
       );
     }
@@ -233,7 +262,7 @@ void main() {
     );
 
     blocTest<ServerCubit, ServerState>(
-      'upload events are prepended newest-first',
+      'completed uploads refresh the shared-file list',
       build: buildCubit,
       act: (cubit) async {
         await cubit.initialize();
@@ -246,7 +275,84 @@ void main() {
           hudLogsEnabled: true,
           uploads: [_completedUpload],
         ),
+        const ServerState(
+          hudLogsEnabled: true,
+          uploads: [_completedUpload],
+          sharedFiles: [_sharedFile],
+        ),
       ],
     );
+
+    blocTest<ServerCubit, ServerState>(
+      'pickAndPublishFiles publishes staged files and refreshes the list',
+      build: buildCubit,
+      act: (cubit) => cubit.pickAndPublishFiles(),
+      setUp: () {
+        when(
+          () => pickHostFiles.execute(),
+        ).thenAnswer((_) async => const [_hostFile]);
+        when(
+          () => publishFiles.execute(any()),
+        ).thenAnswer((_) async => const [_sharedFile]);
+      },
+      expect: () => const [
+        ServerState(isPublishing: true),
+        ServerState(isPublishing: false),
+        ServerState(isPublishing: false, sharedFiles: [_sharedFile]),
+      ],
+    );
+
+    blocTest<ServerCubit, ServerState>(
+      'pickAndPublishFiles skips publishing when nothing is picked',
+      build: buildCubit,
+      act: (cubit) => cubit.pickAndPublishFiles(),
+      setUp: () {
+        when(() => pickHostFiles.execute()).thenAnswer((_) async => const []);
+      },
+      expect: () => const [
+        ServerState(isPublishing: true),
+        ServerState(isPublishing: false),
+      ],
+    );
+
+    blocTest<ServerCubit, ServerState>(
+      'pickAndPublishFiles surfaces an error on failure',
+      build: buildCubit,
+      act: (cubit) => cubit.pickAndPublishFiles(),
+      setUp: () {
+        when(
+          () => pickHostFiles.execute(),
+        ).thenAnswer((_) async => const [_hostFile]);
+        when(
+          () => publishFiles.execute(any()),
+        ).thenThrow(Exception('boom'));
+      },
+      expect: () => const [
+        ServerState(isPublishing: true),
+        ServerState(isPublishing: true, error: 'Failed to publish files'),
+        ServerState(isPublishing: false, error: 'Failed to publish files'),
+      ],
+    );
+
+    test('downloadSharedFile returns the downloaded file name', () async {
+      when(
+        () => downloadSharedFile.execute('report.pdf'),
+      ).thenAnswer((_) async => _sharedFile);
+      final cubit = buildCubit();
+
+      final name = await cubit.downloadSharedFile('report.pdf');
+
+      expect(name, 'report.pdf');
+      verify(() => downloadSharedFile.execute('report.pdf')).called(1);
+    });
+
+    test('downloadSharedFile returns null when the file is missing', () async {
+      when(
+        () => downloadSharedFile.execute(any()),
+      ).thenAnswer((_) async => null);
+      final cubit = buildCubit();
+
+      expect(await cubit.downloadSharedFile('nope.pdf'), isNull);
+    });
   });
 }

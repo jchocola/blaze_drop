@@ -14,8 +14,6 @@ abstract final class AppConstants {
   static const String p2pTransferPath = '/p2p/transfer';
   static const String serverPath = '/server';
   static const String settingsPath = '/settings';
-  static const String historyPath = '/history';
-  static const String profilePath = '/profile';
 
   /// Timing.
   static const Duration splashDuration = Duration(milliseconds: 2000);

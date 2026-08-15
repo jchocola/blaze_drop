@@ -13,6 +13,7 @@ import '../../../../core/utils/file_utils.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/storage_paths.dart';
 import '../../domain/entities/connected_client.dart';
+import '../../domain/entities/host_publish_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_shared_file.dart';
 import '../../domain/entities/server_upload_event.dart';
@@ -41,15 +42,19 @@ class ShelfWebServerTransport implements WebServerTransport {
     required LocalIpResolver ipResolver,
     required WebClientAssets assets,
     Future<String> Function()? sharedDirectoryProvider,
+    Future<String> Function()? receivedDirectoryProvider,
     this.clientTimeout = AppConstants.serverClientTimeout,
   }) : _ipResolver = ipResolver,
        _assets = assets,
        _sharedDirectoryProvider =
-           sharedDirectoryProvider ?? _defaultSharedDirectory;
+           sharedDirectoryProvider ?? _defaultSharedDirectory,
+       _receivedDirectoryProvider =
+           receivedDirectoryProvider ?? _defaultReceivedDirectory;
 
   final LocalIpResolver _ipResolver;
   final WebClientAssets _assets;
   final Future<String> Function() _sharedDirectoryProvider;
+  final Future<String> Function() _receivedDirectoryProvider;
   final Duration clientTimeout;
 
   HttpServer? _server;
@@ -449,6 +454,72 @@ class ShelfWebServerTransport implements WebServerTransport {
   }
 
   @override
+  Future<List<ServerSharedFile>> publishFiles(
+    List<HostPublishFile> files,
+  ) async {
+    final dir = await _sharedDirectory();
+    final results = <ServerSharedFile>[];
+    for (final file in files) {
+      final source = File(file.path);
+      if (!await source.exists()) {
+        continue;
+      }
+      final safeName = FileUtils.sanitizeFileName(file.name);
+      final target = await FileUtils.resolveUniquePath(dir, safeName);
+      await source.copy(target);
+      final savedName = p.basename(target);
+      final size = await File(target).length();
+      final shared = ServerSharedFile(
+        id: FileUtils.sanitizeFileName(savedName),
+        name: savedName,
+        path: target,
+        size: size,
+        mimeType:
+            file.mimeType ?? FileUtils.mimeTypeForName(savedName),
+        addedAt: DateTime.now(),
+      );
+      results.add(shared);
+      // Surface the publication in the HUD so host + guests see it live.
+      _uploadsController.add(
+        ServerUploadEvent(
+          fileName: savedName,
+          transferredBytes: size,
+          totalBytes: size,
+          status: ServerUploadStatus.completed,
+          clientIp: 'HOST',
+          savedPath: target,
+        ),
+      );
+      AppLogger.info('Host published $savedName to the hub');
+    }
+    return results;
+  }
+
+  @override
+  Future<ServerSharedFile?> downloadSharedFile(String fileId) async {
+    final sharedDir = await _sharedDirectory();
+    final safeId = FileUtils.sanitizeFileName(fileId);
+    final source = File('$sharedDir${Platform.pathSeparator}$safeId');
+    if (!await source.exists()) {
+      return null;
+    }
+    final receivedDir = await _receivedDirectory();
+    final target = await FileUtils.resolveUniquePath(receivedDir, safeId);
+    await source.copy(target);
+    final savedName = p.basename(target);
+    final size = await File(target).length();
+    AppLogger.info('Host pulled $savedName into received storage');
+    return ServerSharedFile(
+      id: FileUtils.sanitizeFileName(savedName),
+      name: savedName,
+      path: target,
+      size: size,
+      mimeType: FileUtils.mimeTypeForName(savedName),
+      addedAt: DateTime.now(),
+    );
+  }
+
+  @override
   Future<String> getLocalIp() => _ipResolver.resolve();
 
   @override
@@ -456,8 +527,13 @@ class ShelfWebServerTransport implements WebServerTransport {
 
   Future<String> _sharedDirectory() => _sharedDirectoryProvider();
 
+  Future<String> _receivedDirectory() => _receivedDirectoryProvider();
+
   static Future<String> _defaultSharedDirectory() =>
       StoragePaths.inboxDirectory;
+
+  static Future<String> _defaultReceivedDirectory() =>
+      StoragePaths.receivedDirectory;
 
   Future<List<ServerSharedFile>> _scanDirectory(String dir) async {
     final directory = Directory(dir);

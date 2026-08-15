@@ -6,6 +6,7 @@ import 'package:blaze_drop/features/server/data/datasources/local_ip_resolver.da
 import 'package:blaze_drop/features/server/data/datasources/shelf_web_server_transport.dart';
 import 'package:blaze_drop/features/server/data/datasources/web_client_assets.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
+import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,11 +46,15 @@ class _FakeAssets implements WebClientAssets {
 void main() {
   late ShelfWebServerTransport transport;
   late Directory tempDir;
+  late Directory receivedDir;
   late List<ServerUploadEvent> uploadEvents;
   late StreamSubscription<ServerUploadEvent> uploadSubscription;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('blazedrop_server_test');
+    receivedDir = await Directory.systemTemp.createTemp(
+      'blazedrop_received_test',
+    );
     transport = ShelfWebServerTransport(
       ipResolver: const _FakeIpResolver('192.168.1.10'),
       assets: const _FakeAssets(
@@ -58,6 +63,7 @@ void main() {
         js: 'console.log(1);',
       ),
       sharedDirectoryProvider: () async => tempDir.path,
+      receivedDirectoryProvider: () async => receivedDir.path,
       clientTimeout: const Duration(seconds: 5),
     );
     uploadEvents = [];
@@ -68,6 +74,7 @@ void main() {
     await uploadSubscription.cancel();
     await transport.dispose();
     await tempDir.delete(recursive: true);
+    await receivedDir.delete(recursive: true);
   });
 
   Future<ServerSession> startHub() =>
@@ -188,5 +195,65 @@ void main() {
 
     expect(statusSnapshots.last.status, ServerStatus.stopped);
     await subscription.cancel();
+  });
+
+  test('publishFiles copies host files into the hub and exposes them', () async {
+    final session = await startHub();
+    final source = File('${tempDir.path}/_source_deploy.zip');
+    await source.writeAsBytes(utf8.encode('host payload'));
+
+    final published = await transport.publishFiles(
+      [
+        HostPublishFile(name: 'deploy.zip', path: source.path, size: 12),
+      ],
+    );
+
+    // The copy landed in the shared dir (not under the source name).
+    expect(published.length, 1);
+    expect(await File('${tempDir.path}/deploy.zip').exists(), isTrue);
+    expect(
+      await File('${tempDir.path}/deploy.zip').readAsString(),
+      'host payload',
+    );
+
+    // A completed upload event surfaces for the HUD.
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      uploadEvents.any(
+        (e) =>
+            e.status == ServerUploadStatus.completed &&
+            e.fileName == 'deploy.zip',
+      ),
+      isTrue,
+    );
+
+    // Guests can list the published asset.
+    final filesResponse = await http.get(hubUri(session, '/files'));
+    expect(filesResponse.statusCode, 200);
+    final filesJson = jsonDecode(filesResponse.body) as Map<String, dynamic>;
+    final files = filesJson['files'] as List;
+    expect(files.any((f) => (f as Map)['name'] == 'deploy.zip'), isTrue);
+  });
+
+  test('downloadSharedFile pulls a copy into the host received folder', () async {
+    await startHub();
+    await File('${tempDir.path}/secret.txt').writeAsString('secret data');
+
+    final downloaded = await transport.downloadSharedFile('secret.txt');
+
+    expect(downloaded, isNotNull);
+    expect(downloaded!.name, 'secret.txt');
+    expect(await File('${receivedDir.path}/secret.txt').exists(), isTrue);
+    expect(
+      await File('${receivedDir.path}/secret.txt').readAsString(),
+      'secret data',
+    );
+  });
+
+  test('downloadSharedFile returns null when the file is missing', () async {
+    await startHub();
+    final downloaded = await transport.downloadSharedFile('nope.txt');
+
+    expect(downloaded, isNull);
   });
 }

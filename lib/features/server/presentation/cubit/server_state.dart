@@ -14,6 +14,7 @@ class ServerState extends Equatable {
     this.uploads = const [],
     this.hudLogsEnabled = true,
     this.isRefreshing = false,
+    this.isPublishing = false,
     this.error,
   });
 
@@ -34,6 +35,9 @@ class ServerState extends Equatable {
 
   final bool isRefreshing;
 
+  /// True while the host is publishing files into the hub.
+  final bool isPublishing;
+
   final String? error;
 
   bool get isActive => session.isActive;
@@ -45,6 +49,7 @@ class ServerState extends Equatable {
     List<ServerUploadEvent>? uploads,
     bool? hudLogsEnabled,
     bool? isRefreshing,
+    bool? isPublishing,
     Object? error = _unset,
   }) {
     return ServerState(
@@ -54,6 +59,7 @@ class ServerState extends Equatable {
       uploads: uploads ?? this.uploads,
       hudLogsEnabled: hudLogsEnabled ?? this.hudLogsEnabled,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      isPublishing: isPublishing ?? this.isPublishing,
       error: identical(error, _unset) ? this.error : error as String?,
     );
   }
@@ -68,6 +74,7 @@ class ServerState extends Equatable {
     uploads,
     hudLogsEnabled,
     isRefreshing,
+    isPublishing,
     error,
   ];
 }

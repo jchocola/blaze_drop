@@ -8,7 +8,10 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entities/connected_client.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_upload_event.dart';
+import '../../domain/use_cases/download_shared_file_use_case.dart';
 import '../../domain/use_cases/list_shared_files_use_case.dart';
+import '../../domain/use_cases/pick_host_files_use_case.dart';
+import '../../domain/use_cases/publish_files_use_case.dart';
 import '../../domain/use_cases/refresh_server_use_case.dart';
 import '../../domain/use_cases/start_server_use_case.dart';
 import '../../domain/use_cases/stop_server_use_case.dart';
@@ -31,6 +34,9 @@ class ServerCubit extends Cubit<ServerState> {
     required this.watchConnectedClientsUseCase,
     required this.watchUploadsUseCase,
     required this.listSharedFilesUseCase,
+    required this.pickHostFilesUseCase,
+    required this.publishFilesUseCase,
+    required this.downloadSharedFileUseCase,
     required SettingsRepository settingsRepository,
   }) : _settingsRepository = settingsRepository,
        super(const ServerState());
@@ -42,6 +48,9 @@ class ServerCubit extends Cubit<ServerState> {
   final WatchConnectedClientsUseCase watchConnectedClientsUseCase;
   final WatchUploadsUseCase watchUploadsUseCase;
   final ListSharedFilesUseCase listSharedFilesUseCase;
+  final PickHostFilesUseCase pickHostFilesUseCase;
+  final PublishFilesUseCase publishFilesUseCase;
+  final DownloadSharedFileUseCase downloadSharedFileUseCase;
   final SettingsRepository _settingsRepository;
 
   StreamSubscription<ServerSession>? _statusSub;
@@ -88,6 +97,12 @@ class ServerCubit extends Cubit<ServerState> {
             .take(AppConstants.serverUploadLogLimit)
             .toList();
         emit(state.copyWith(uploads: logs));
+        // A completed transfer (guest upload or host publication) changes the
+        // hub storage — refresh the shareable list live instead of waiting
+        // for a server restart.
+        if (event.status == ServerUploadStatus.completed) {
+          refreshFiles();
+        }
       },
       onError: _onStreamError,
     );
@@ -170,6 +185,53 @@ class ServerCubit extends Cubit<ServerState> {
       }
     } catch (error, stack) {
       AppLogger.error('Failed to list shared files', error, stack);
+    }
+  }
+
+  /// Opens the host picker and publishes the chosen files into the hub so
+  /// guests can download them (FUNCTIONALITY.md §5.4).
+  Future<void> pickAndPublishFiles() async {
+    if (state.isPublishing) {
+      return;
+    }
+    emit(state.copyWith(isPublishing: true, error: null));
+    var published = false;
+    try {
+      final files = await pickHostFilesUseCase.execute();
+      if (files.isNotEmpty && !isClosed) {
+        await publishFilesUseCase.execute(files);
+        published = true;
+        AppLogger.info('Published ${files.length} file(s) to the hub');
+      }
+    } catch (error, stack) {
+      AppLogger.error('Failed to publish files', error, stack);
+      if (!isClosed) {
+        emit(state.copyWith(error: 'Failed to publish files'));
+      }
+    } finally {
+      if (!isClosed) {
+        emit(state.copyWith(isPublishing: false));
+      }
+    }
+    // The completed publication events already refresh the storage list, but
+    // re-scan once more so the UI reflects the exact result.
+    if (published && !isClosed) {
+      await refreshFiles();
+    }
+  }
+
+  /// Pulls a copy of [fileId] from the hub into the host's received folder.
+  /// Returns the downloaded file name (or null on failure) for UI feedback.
+  Future<String?> downloadSharedFile(String fileId) async {
+    try {
+      final downloaded = await downloadSharedFileUseCase.execute(fileId);
+      return downloaded?.name;
+    } catch (error, stack) {
+      AppLogger.error('Failed to download shared file', error, stack);
+      if (!isClosed) {
+        emit(state.copyWith(error: 'Download failed'));
+      }
+      return null;
     }
   }
 

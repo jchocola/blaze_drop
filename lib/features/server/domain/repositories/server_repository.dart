@@ -1,4 +1,5 @@
 import '../entities/connected_client.dart';
+import '../entities/host_publish_file.dart';
 import '../entities/server_session.dart';
 import '../entities/server_shared_file.dart';
 import '../entities/server_upload_event.dart';
@@ -31,6 +32,17 @@ abstract interface class ServerRepository {
 
   /// Files currently shareable on the hub.
   Future<List<ServerSharedFile>> listSharedFiles();
+
+  /// Opens the host file picker and returns files staged for publication.
+  Future<List<HostPublishFile>> pickHostFiles();
+
+  /// Copies [files] from the host device into the hub's shared storage so
+  /// guests can download them. Returns the resulting shareable files.
+  Future<List<ServerSharedFile>> publishFiles(List<HostPublishFile> files);
+
+  /// Pulls a copy of a hub file into the host's local received folder.
+  /// Returns the downloaded file, or null when it no longer exists.
+  Future<ServerSharedFile?> downloadSharedFile(String fileId);
 
   /// Local IPv4 address of this host.
   Future<String> getLocalIp();

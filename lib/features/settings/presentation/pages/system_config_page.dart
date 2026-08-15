@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/constants.dart';
 import '../../../../core/theme/theme.dart';
@@ -93,17 +92,6 @@ class _Header extends StatelessWidget {
         children: [
           Row(
             children: [
-              InkWell(
-                onTap: () => context.pop(),
-                child: const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: Icon(
-                    Icons.arrow_back,
-                    color: AppColors.primaryContainer,
-                    size: 22,
-                  ),
-                ),
-              ),
               const Expanded(
                 child: SectionLabel(
                   text: 'SYS.CFG',

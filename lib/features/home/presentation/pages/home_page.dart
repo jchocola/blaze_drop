@@ -10,29 +10,10 @@ import '../../../../core/widgets/section_label.dart';
 ///
 /// Module A guarantees the node is initialized; this screen lets the user pick
 /// between the two transfer modes. Module B (P2P) and Module C (Server) are
-/// both wired; the bottom nav opens HISTORY / SETTINGS / PROFILE.
-class HomePage extends StatefulWidget {
+/// both wired. HOME and SETTINGS are tabs of the router shell
+/// (`app_shell.dart`); this page is the HOME branch.
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  var _index = 0;
-
-  void _selectTab(int index) {
-    if (index == 0) {
-      setState(() => _index = 0);
-      return;
-    }
-    final path = switch (index) {
-      1 => AppConstants.historyPath,
-      2 => AppConstants.settingsPath,
-      _ => AppConstants.profilePath,
-    };
-    context.push(path);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,29 +63,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        onTap: _selectTab,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'HOME',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined),
-            label: 'HISTORY',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            label: 'SETTINGS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'PROFILE',
-          ),
-        ],
       ),
     );
   }

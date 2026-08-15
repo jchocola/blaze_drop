@@ -18,4 +18,17 @@ abstract final class StoragePaths {
     await dir.create(recursive: true);
     return dir.path;
   }
+
+  /// Folder where the host pulls copies of hub files ("download" for the
+  /// server, FUNCTIONALITY.md §5.4). Kept separate from [inboxDirectory] so
+  /// hub staging and personally received files stay distinct.
+  static Future<String> get receivedDirectory async {
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(
+      '${docs.path}${Platform.pathSeparator}BlazeDrop'
+      '${Platform.pathSeparator}Received',
+    );
+    await dir.create(recursive: true);
+    return dir.path;
+  }
 }

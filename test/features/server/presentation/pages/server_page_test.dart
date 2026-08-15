@@ -8,7 +8,10 @@ import 'package:blaze_drop/features/server/domain/entities/connected_client.dart
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_shared_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/stop_server_use_case.dart';
@@ -37,6 +40,13 @@ class _MockWatchUploads extends Mock implements WatchUploadsUseCase {}
 
 class _MockListFiles extends Mock implements ListSharedFilesUseCase {}
 
+class _MockPickHostFiles extends Mock implements PickHostFilesUseCase {}
+
+class _MockPublishFiles extends Mock implements PublishFilesUseCase {}
+
+class _MockDownloadSharedFile extends Mock
+    implements DownloadSharedFileUseCase {}
+
 class _MockSettingsRepository extends Mock implements SettingsRepository {}
 
 const _activeSession = ServerSession(
@@ -60,6 +70,9 @@ void main() {
   late _MockWatchClients watchClients;
   late _MockWatchUploads watchUploads;
   late _MockListFiles listFiles;
+  late _MockPickHostFiles pickHostFiles;
+  late _MockPublishFiles publishFiles;
+  late _MockDownloadSharedFile downloadSharedFile;
   late _MockSettingsRepository settingsRepository;
   late StreamController<ServerSession> statusController;
   late StreamController<List<ConnectedClient>> clientsController;
@@ -73,6 +86,9 @@ void main() {
     watchClients = _MockWatchClients();
     watchUploads = _MockWatchUploads();
     listFiles = _MockListFiles();
+    pickHostFiles = _MockPickHostFiles();
+    publishFiles = _MockPublishFiles();
+    downloadSharedFile = _MockDownloadSharedFile();
     settingsRepository = _MockSettingsRepository();
     statusController = StreamController<ServerSession>.broadcast();
     clientsController = StreamController<List<ConnectedClient>>.broadcast();
@@ -111,6 +127,9 @@ void main() {
       watchConnectedClientsUseCase: watchClients,
       watchUploadsUseCase: watchUploads,
       listSharedFilesUseCase: listFiles,
+      pickHostFilesUseCase: pickHostFiles,
+      publishFilesUseCase: publishFiles,
+      downloadSharedFileUseCase: downloadSharedFile,
       settingsRepository: settingsRepository,
     );
   }
@@ -188,5 +207,47 @@ void main() {
     await tester.pump();
 
     verify(() => stopServer.execute()).called(1);
+  });
+
+  testWidgets('shows the host upload card and PUSH FILES action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    when(() => pickHostFiles.execute()).thenAnswer((_) async => const []);
+    final cubit = buildCubit();
+    await tester.pumpWidget(buildApp(cubit));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('HOST UPLOAD // DEPLOY ASSETS'), findsOneWidget);
+    expect(find.text('PUSH FILES'), findsOneWidget);
+
+    await tester.tap(find.text('PUSH FILES'));
+    await tester.pump();
+
+    verify(() => pickHostFiles.execute()).called(1);
+  });
+
+  testWidgets('GET on a shared file pulls it to the host received folder', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    when(
+      () => downloadSharedFile.execute('manifest.json'),
+    ).thenAnswer((_) async => _sharedFile);
+    final cubit = buildCubit();
+    await tester.pumpWidget(buildApp(cubit));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('GET'), findsOneWidget);
+
+    await tester.tap(find.text('GET'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    verify(() => downloadSharedFile.execute('manifest.json')).called(1);
   });
 }

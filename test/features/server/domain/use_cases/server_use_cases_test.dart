@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_shared_file.dart';
 import 'package:blaze_drop/features/server/domain/repositories/server_repository.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/stop_server_use_case.dart';
@@ -17,6 +21,19 @@ const _activeSession = ServerSession(
   status: ServerStatus.active,
   port: 8080,
   localIp: '192.168.1.10',
+);
+
+const _hostFile = HostPublishFile(
+  name: 'deploy.zip',
+  path: '/tmp/deploy.zip',
+  size: 42,
+);
+
+const _publishedFile = ServerSharedFile(
+  id: 'deploy.zip',
+  name: 'deploy.zip',
+  path: '/shared/deploy.zip',
+  size: 42,
 );
 
 void main() {
@@ -74,17 +91,49 @@ void main() {
     });
 
     test('ListSharedFilesUseCase returns the shared files', () async {
-      const file = ServerSharedFile(
-        id: 'a.txt',
-        name: 'a.txt',
-        path: '/tmp/a.txt',
-        size: 5,
-      );
-      when(() => repository.listSharedFiles()).thenAnswer((_) async => [file]);
+      when(() => repository.listSharedFiles()).thenAnswer((_) async => [
+        _publishedFile,
+      ]);
 
       final result = await ListSharedFilesUseCase(repository).execute();
 
-      expect(result, [file]);
+      expect(result, [_publishedFile]);
+    });
+
+    test('PickHostFilesUseCase returns the staged host files', () async {
+      when(() => repository.pickHostFiles()).thenAnswer((_) async => [
+        _hostFile,
+      ]);
+
+      final result = await PickHostFilesUseCase(repository).execute();
+
+      expect(result, [_hostFile]);
+    });
+
+    test('PublishFilesUseCase publishes the staged files', () async {
+      when(
+        () => repository.publishFiles(any()),
+      ).thenAnswer((_) async => [_publishedFile]);
+
+      final result = await PublishFilesUseCase(repository).execute(
+        const [_hostFile],
+      );
+
+      expect(result, [_publishedFile]);
+      verify(() => repository.publishFiles(const [_hostFile])).called(1);
+    });
+
+    test('DownloadSharedFileUseCase pulls the shared file', () async {
+      when(
+        () => repository.downloadSharedFile(any()),
+      ).thenAnswer((_) async => _publishedFile);
+
+      final result = await DownloadSharedFileUseCase(repository).execute(
+        'deploy.zip',
+      );
+
+      expect(result, _publishedFile);
+      verify(() => repository.downloadSharedFile('deploy.zip')).called(1);
     });
   });
 }

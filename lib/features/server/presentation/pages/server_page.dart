@@ -80,6 +80,20 @@ class _ServerPageState extends State<ServerPage> {
     }
   }
 
+  void _publishFiles(BuildContext context) {
+    context.read<ServerCubit>().pickAndPublishFiles();
+  }
+
+  Future<void> _downloadFile(ServerSharedFile file) async {
+    final name = await context.read<ServerCubit>().downloadSharedFile(file.id);
+    if (!mounted || name == null) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('▼ SAVED // $name')));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,6 +112,8 @@ class _ServerPageState extends State<ServerPage> {
                           state: state,
                           onCopy: (session) =>
                               _copyDirectConnect(context, session),
+                          onPublish: () => _publishFiles(context),
+                          onDownload: _downloadFile,
                         )
                       : const _StartingView(),
                 ),
@@ -207,10 +223,17 @@ class _StartingView extends StatelessWidget {
 }
 
 class _HubBody extends StatelessWidget {
-  const _HubBody({required this.state, required this.onCopy});
+  const _HubBody({
+    required this.state,
+    required this.onCopy,
+    required this.onPublish,
+    required this.onDownload,
+  });
 
   final ServerState state;
   final void Function(ServerSession session) onCopy;
+  final VoidCallback onPublish;
+  final void Function(ServerSharedFile file) onDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -226,13 +249,15 @@ class _HubBody extends StatelessWidget {
           onRefresh: () => context.read<ServerCubit>().refresh(),
         ),
         const SizedBox(height: 14),
+        _HostUploadCard(isPublishing: state.isPublishing, onPublish: onPublish),
+        const SizedBox(height: 14),
         _ConnectionsCard(clients: state.clients),
         if (state.hudLogsEnabled) ...[
           const SizedBox(height: 14),
           _UploadLogCard(uploads: state.uploads),
         ],
         const SizedBox(height: 14),
-        _StorageCard(files: state.sharedFiles),
+        _StorageCard(files: state.sharedFiles, onDownload: onDownload),
       ],
     );
   }
@@ -387,6 +412,77 @@ class _ConnectionsCard extends StatelessWidget {
   }
 }
 
+/// Host→hub upload card (FUNCTIONALITY.md §5.4 "Host Management"): the host
+/// stages files from its device and pushes them into the hub so guests can
+/// download them.
+class _HostUploadCard extends StatelessWidget {
+  const _HostUploadCard({
+    required this.isPublishing,
+    required this.onPublish,
+  });
+
+  final bool isPublishing;
+  final VoidCallback onPublish;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'HOST UPLOAD // DEPLOY ASSETS',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: isPublishing ? null : onPublish,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                border: Border.all(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.55),
+                  width: 1.5,
+                ),
+                borderRadius: AppTheme.sharp,
+              ),
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 30,
+                    color: AppColors.primaryContainer,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'DEPLOY ASSETS HERE',
+                    style: AppTextStyles.labelCaps.copyWith(
+                      color: AppColors.primaryContainer,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Push files from this device to the hub.',
+                    style: AppTextStyles.bodySm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          BlazeButton(
+            label: isPublishing ? 'PUBLISHING…' : 'PUSH FILES',
+            icon: Icons.bolt,
+            variant: BlazeButtonVariant.cta,
+            compact: true,
+            isLoading: isPublishing,
+            onPressed: isPublishing ? null : onPublish,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _UploadLogCard extends StatelessWidget {
   const _UploadLogCard({required this.uploads});
 
@@ -416,9 +512,10 @@ class _UploadLogCard extends StatelessWidget {
 }
 
 class _StorageCard extends StatelessWidget {
-  const _StorageCard({required this.files});
+  const _StorageCard({required this.files, required this.onDownload});
 
   final List<ServerSharedFile> files;
+  final void Function(ServerSharedFile file) onDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -436,7 +533,8 @@ class _StorageCard extends StatelessWidget {
             )
           : Column(
               children: [
-                for (final file in files) StorageTile(file: file),
+                for (final file in files)
+                  StorageTile(file: file, onDownload: () => onDownload(file)),
               ],
             ),
     );

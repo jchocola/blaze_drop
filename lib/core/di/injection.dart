@@ -26,13 +26,17 @@ import '../../features/p2p/domain/use_cases/watch_discovered_peers_use_case.dart
 import '../../features/p2p/domain/use_cases/watch_incoming_requests_use_case.dart';
 import '../../features/p2p/domain/use_cases/watch_transfer_updates_use_case.dart';
 import '../../features/p2p/presentation/cubit/p2p_cubit.dart';
+import '../../features/server/data/datasources/host_file_picker.dart';
 import '../../features/server/data/datasources/local_ip_resolver.dart';
 import '../../features/server/data/datasources/shelf_web_server_transport.dart';
 import '../../features/server/data/datasources/web_client_assets.dart';
 import '../../features/server/data/datasources/web_server_transport.dart';
 import '../../features/server/data/repositories_impl/server_repository_impl.dart';
 import '../../features/server/domain/repositories/server_repository.dart';
+import '../../features/server/domain/use_cases/download_shared_file_use_case.dart';
 import '../../features/server/domain/use_cases/list_shared_files_use_case.dart';
+import '../../features/server/domain/use_cases/pick_host_files_use_case.dart';
+import '../../features/server/domain/use_cases/publish_files_use_case.dart';
 import '../../features/server/domain/use_cases/refresh_server_use_case.dart';
 import '../../features/server/domain/use_cases/start_server_use_case.dart';
 import '../../features/server/domain/use_cases/stop_server_use_case.dart';
@@ -155,6 +159,7 @@ Future<void> setupLocator() async {
   sl
     ..registerLazySingleton<LocalIpResolver>(NetworkLocalIpResolver.new)
     ..registerLazySingleton<WebClientAssets>(BundledWebClientAssets.new)
+    ..registerLazySingleton<HostFilePicker>(SystemHostFilePicker.new)
     ..registerLazySingleton<WebServerTransport>(
       () => ShelfWebServerTransport(
         ipResolver: sl<LocalIpResolver>(),
@@ -163,7 +168,10 @@ Future<void> setupLocator() async {
       ),
     )
     ..registerLazySingleton<ServerRepository>(
-      () => ServerRepositoryImpl(transport: sl<WebServerTransport>()),
+      () => ServerRepositoryImpl(
+        transport: sl<WebServerTransport>(),
+        filePicker: sl<HostFilePicker>(),
+      ),
     );
 
   // Domain use cases (Module C — Server).
@@ -182,6 +190,15 @@ Future<void> setupLocator() async {
     ..registerLazySingleton(() => WatchUploadsUseCase(sl<ServerRepository>()))
     ..registerLazySingleton(
       () => ListSharedFilesUseCase(sl<ServerRepository>()),
+    )
+    ..registerLazySingleton(
+      () => PickHostFilesUseCase(sl<ServerRepository>()),
+    )
+    ..registerLazySingleton(
+      () => PublishFilesUseCase(sl<ServerRepository>()),
+    )
+    ..registerLazySingleton(
+      () => DownloadSharedFileUseCase(sl<ServerRepository>()),
     );
 
   // Presentation.
@@ -221,6 +238,9 @@ Future<void> setupLocator() async {
       watchConnectedClientsUseCase: sl<WatchConnectedClientsUseCase>(),
       watchUploadsUseCase: sl<WatchUploadsUseCase>(),
       listSharedFilesUseCase: sl<ListSharedFilesUseCase>(),
+      pickHostFilesUseCase: sl<PickHostFilesUseCase>(),
+      publishFilesUseCase: sl<PublishFilesUseCase>(),
+      downloadSharedFileUseCase: sl<DownloadSharedFileUseCase>(),
       settingsRepository: sl<SettingsRepository>(),
     ),
   );
