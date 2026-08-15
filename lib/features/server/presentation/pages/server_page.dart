@@ -8,6 +8,7 @@ import '../../../../core/theme/theme.dart';
 import '../../../../core/widgets/blaze_button.dart';
 import '../../../../core/widgets/section_label.dart';
 import '../../domain/entities/connected_client.dart';
+import '../../domain/entities/downloaded_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_shared_file.dart';
 import '../../domain/entities/server_upload_event.dart';
@@ -85,13 +86,18 @@ class _ServerPageState extends State<ServerPage> {
   }
 
   Future<void> _downloadFile(ServerSharedFile file) async {
-    final name = await context.read<ServerCubit>().downloadSharedFile(file.id);
-    if (!mounted || name == null) {
+    final downloaded = await context
+        .read<ServerCubit>()
+        .downloadSharedFile(file.id);
+    if (!mounted || downloaded == null) {
       return;
     }
+    final label = downloaded.target == DownloadTarget.gallery
+        ? '▼ SAVED TO GALLERY // ${downloaded.name}'
+        : '▼ SAVED // ${downloaded.name}';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('▼ SAVED // $name')));
+      ..showSnackBar(SnackBar(content: Text(label)));
   }
 
   @override

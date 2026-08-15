@@ -1,5 +1,6 @@
 import '../../../../core/constants/constants.dart';
 import '../../domain/entities/connected_client.dart';
+import '../../domain/entities/downloaded_file.dart';
 import '../../domain/entities/host_publish_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_shared_file.dart';
@@ -57,7 +58,7 @@ class ServerRepositoryImpl implements ServerRepository {
   ) => _transport.publishFiles(files);
 
   @override
-  Future<ServerSharedFile?> downloadSharedFile(String fileId) =>
+  Future<DownloadedFile?> downloadSharedFile(String fileId) =>
       _transport.downloadSharedFile(fileId);
 
   @override

@@ -4,6 +4,7 @@ import 'package:blaze_drop/features/server/data/datasources/host_file_picker.dar
 import 'package:blaze_drop/features/server/data/datasources/web_server_transport.dart';
 import 'package:blaze_drop/features/server/data/repositories_impl/server_repository_impl.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
+import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_shared_file.dart';
@@ -126,6 +127,10 @@ void main() {
         path: '/shared/deploy.zip',
         size: 42,
       );
+      const downloaded = DownloadedFile(
+        name: 'photo.png',
+        target: DownloadTarget.gallery,
+      );
 
       when(() => filePicker.pickFiles()).thenAnswer((_) async => [staged]);
       when(
@@ -133,15 +138,15 @@ void main() {
       ).thenAnswer((_) async => [published]);
       when(
         () => transport.downloadSharedFile(any()),
-      ).thenAnswer((_) async => published);
+      ).thenAnswer((_) async => downloaded);
 
       expect(await repository.pickHostFiles(), [staged]);
       expect(await repository.publishFiles(const [staged]), [published]);
-      expect(await repository.downloadSharedFile('deploy.zip'), published);
+      expect(await repository.downloadSharedFile('photo.png'), downloaded);
 
       verify(() => filePicker.pickFiles()).called(1);
       verify(() => transport.publishFiles(const [staged])).called(1);
-      verify(() => transport.downloadSharedFile('deploy.zip')).called(1);
+      verify(() => transport.downloadSharedFile('photo.png')).called(1);
     });
   });
 }

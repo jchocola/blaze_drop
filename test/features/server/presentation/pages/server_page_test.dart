@@ -5,6 +5,7 @@ import 'package:blaze_drop/core/config/settings_repository.dart';
 import 'package:blaze_drop/core/constants/constants.dart';
 import 'package:blaze_drop/core/theme/theme.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
+import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_shared_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
@@ -234,9 +235,14 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(900, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    const downloaded = DownloadedFile(
+      name: 'manifest.json',
+      target: DownloadTarget.documents,
+      path: '/received/manifest.json',
+    );
     when(
       () => downloadSharedFile.execute('manifest.json'),
-    ).thenAnswer((_) async => _sharedFile);
+    ).thenAnswer((_) async => downloaded);
     final cubit = buildCubit();
     await tester.pumpWidget(buildApp(cubit));
     await tester.pump();

@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:blaze_drop/features/server/data/datasources/local_ip_resolver.dart';
+import 'package:blaze_drop/features/server/data/datasources/media_store.dart';
 import 'package:blaze_drop/features/server/data/datasources/shelf_web_server_transport.dart';
 import 'package:blaze_drop/features/server/data/datasources/web_client_assets.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
+import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
@@ -43,6 +45,27 @@ class _FakeAssets implements WebClientAssets {
   }
 }
 
+/// Fake [MediaStore] that copies everything to a documents dir (no `gal`).
+class _FakeMediaStore implements MediaStore {
+  _FakeMediaStore(this.documentsDir);
+
+  final String documentsDir;
+
+  @override
+  Future<DownloadedFile> store({
+    required String sourcePath,
+    required String fileName,
+  }) async {
+    final target = '$documentsDir/${fileName.replaceAll(RegExp(r'[/\\]'), '_')}';
+    await File(sourcePath).copy(target);
+    return DownloadedFile(
+      name: fileName,
+      target: DownloadTarget.documents,
+      path: target,
+    );
+  }
+}
+
 void main() {
   late ShelfWebServerTransport transport;
   late Directory tempDir;
@@ -63,7 +86,7 @@ void main() {
         js: 'console.log(1);',
       ),
       sharedDirectoryProvider: () async => tempDir.path,
-      receivedDirectoryProvider: () async => receivedDir.path,
+      mediaStore: _FakeMediaStore(receivedDir.path),
       clientTimeout: const Duration(seconds: 5),
     );
     uploadEvents = [];
@@ -235,7 +258,7 @@ void main() {
     expect(files.any((f) => (f as Map)['name'] == 'deploy.zip'), isTrue);
   });
 
-  test('downloadSharedFile pulls a copy into the host received folder', () async {
+  test('downloadSharedFile stores the file through the media store', () async {
     await startHub();
     await File('${tempDir.path}/secret.txt').writeAsString('secret data');
 
@@ -243,6 +266,7 @@ void main() {
 
     expect(downloaded, isNotNull);
     expect(downloaded!.name, 'secret.txt');
+    expect(downloaded.target, DownloadTarget.documents);
     expect(await File('${receivedDir.path}/secret.txt').exists(), isTrue);
     expect(
       await File('${receivedDir.path}/secret.txt').readAsString(),

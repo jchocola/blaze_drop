@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_shared_file.dart';
@@ -124,16 +125,20 @@ void main() {
     });
 
     test('DownloadSharedFileUseCase pulls the shared file', () async {
+      const downloaded = DownloadedFile(
+        name: 'photo.png',
+        target: DownloadTarget.gallery,
+      );
       when(
         () => repository.downloadSharedFile(any()),
-      ).thenAnswer((_) async => _publishedFile);
+      ).thenAnswer((_) async => downloaded);
 
       final result = await DownloadSharedFileUseCase(repository).execute(
-        'deploy.zip',
+        'photo.png',
       );
 
-      expect(result, _publishedFile);
-      verify(() => repository.downloadSharedFile('deploy.zip')).called(1);
+      expect(result, downloaded);
+      verify(() => repository.downloadSharedFile('photo.png')).called(1);
     });
   });
 }

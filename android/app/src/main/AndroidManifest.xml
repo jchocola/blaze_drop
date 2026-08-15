@@ -10,6 +10,8 @@
     <!-- API 33+ peer discovery without location derivation -->
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation"/>
+    <!-- Saving downloaded photos to the gallery (API 33+) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <!-- Transfer completion notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>

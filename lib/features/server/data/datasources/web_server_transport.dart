@@ -1,4 +1,5 @@
 import '../../domain/entities/connected_client.dart';
+import '../../domain/entities/downloaded_file.dart';
 import '../../domain/entities/host_publish_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_shared_file.dart';
@@ -39,8 +40,9 @@ abstract interface class WebServerTransport {
   /// download them. Returns the resulting shareable files.
   Future<List<ServerSharedFile>> publishFiles(List<HostPublishFile> files);
 
-  /// Pulls a copy of a hub file into the host's received folder.
-  Future<ServerSharedFile?> downloadSharedFile(String fileId);
+  /// Pulls a copy of a hub file to this device — photos go to the gallery,
+  /// other files to documents. Returns where it landed, or null if missing.
+  Future<DownloadedFile?> downloadSharedFile(String fileId);
 
   /// Local IPv4 address.
   Future<String> getLocalIp();

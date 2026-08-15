@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:blaze_drop/core/config/app_config.dart';
 import 'package:blaze_drop/core/config/settings_repository.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
+import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_shared_file.dart';
@@ -334,15 +335,21 @@ void main() {
       ],
     );
 
-    test('downloadSharedFile returns the downloaded file name', () async {
+    test('downloadSharedFile returns the downloaded result', () async {
+      const downloaded = DownloadedFile(
+        name: 'report.pdf',
+        target: DownloadTarget.documents,
+        path: '/tmp/report.pdf',
+      );
       when(
         () => downloadSharedFile.execute('report.pdf'),
-      ).thenAnswer((_) async => _sharedFile);
+      ).thenAnswer((_) async => downloaded);
       final cubit = buildCubit();
 
-      final name = await cubit.downloadSharedFile('report.pdf');
+      final result = await cubit.downloadSharedFile('report.pdf');
 
-      expect(name, 'report.pdf');
+      expect(result, downloaded);
+      expect(result!.target, DownloadTarget.documents);
       verify(() => downloadSharedFile.execute('report.pdf')).called(1);
     });
 

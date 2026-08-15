@@ -13,11 +13,14 @@ import '../../../../core/utils/file_utils.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/storage_paths.dart';
 import '../../domain/entities/connected_client.dart';
+import '../../domain/entities/downloaded_file.dart';
 import '../../domain/entities/host_publish_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_shared_file.dart';
 import '../../domain/entities/server_upload_event.dart';
+import 'device_media_store.dart';
 import 'local_ip_resolver.dart';
+import 'media_store.dart';
 import 'web_client_assets.dart';
 import 'web_server_transport.dart';
 
@@ -42,19 +45,18 @@ class ShelfWebServerTransport implements WebServerTransport {
     required LocalIpResolver ipResolver,
     required WebClientAssets assets,
     Future<String> Function()? sharedDirectoryProvider,
-    Future<String> Function()? receivedDirectoryProvider,
+    MediaStore? mediaStore,
     this.clientTimeout = AppConstants.serverClientTimeout,
   }) : _ipResolver = ipResolver,
        _assets = assets,
        _sharedDirectoryProvider =
            sharedDirectoryProvider ?? _defaultSharedDirectory,
-       _receivedDirectoryProvider =
-           receivedDirectoryProvider ?? _defaultReceivedDirectory;
+       _mediaStore = mediaStore ?? DeviceMediaStore();
 
   final LocalIpResolver _ipResolver;
   final WebClientAssets _assets;
   final Future<String> Function() _sharedDirectoryProvider;
-  final Future<String> Function() _receivedDirectoryProvider;
+  final MediaStore _mediaStore;
   final Duration clientTimeout;
 
   HttpServer? _server;
@@ -496,27 +498,22 @@ class ShelfWebServerTransport implements WebServerTransport {
   }
 
   @override
-  Future<ServerSharedFile?> downloadSharedFile(String fileId) async {
+  Future<DownloadedFile?> downloadSharedFile(String fileId) async {
     final sharedDir = await _sharedDirectory();
     final safeId = FileUtils.sanitizeFileName(fileId);
     final source = File('$sharedDir${Platform.pathSeparator}$safeId');
     if (!await source.exists()) {
       return null;
     }
-    final receivedDir = await _receivedDirectory();
-    final target = await FileUtils.resolveUniquePath(receivedDir, safeId);
-    await source.copy(target);
-    final savedName = p.basename(target);
-    final size = await File(target).length();
-    AppLogger.info('Host pulled $savedName into received storage');
-    return ServerSharedFile(
-      id: FileUtils.sanitizeFileName(savedName),
-      name: savedName,
-      path: target,
-      size: size,
-      mimeType: FileUtils.mimeTypeForName(savedName),
-      addedAt: DateTime.now(),
+    final fileName = p.basename(source.path);
+    final downloaded = await _mediaStore.store(
+      sourcePath: source.path,
+      fileName: fileName,
     );
+    AppLogger.info(
+      'Host downloaded $fileName → ${downloaded.target.name}',
+    );
+    return downloaded;
   }
 
   @override
@@ -527,13 +524,8 @@ class ShelfWebServerTransport implements WebServerTransport {
 
   Future<String> _sharedDirectory() => _sharedDirectoryProvider();
 
-  Future<String> _receivedDirectory() => _receivedDirectoryProvider();
-
   static Future<String> _defaultSharedDirectory() =>
       StoragePaths.inboxDirectory;
-
-  static Future<String> _defaultReceivedDirectory() =>
-      StoragePaths.receivedDirectory;
 
   Future<List<ServerSharedFile>> _scanDirectory(String dir) async {
     final directory = Directory(dir);

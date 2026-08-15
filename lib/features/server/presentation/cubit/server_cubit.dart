@@ -6,6 +6,7 @@ import '../../../../core/config/settings_repository.dart';
 import '../../../../core/constants/constants.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/connected_client.dart';
+import '../../domain/entities/downloaded_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_upload_event.dart';
 import '../../domain/use_cases/download_shared_file_use_case.dart';
@@ -220,12 +221,13 @@ class ServerCubit extends Cubit<ServerState> {
     }
   }
 
-  /// Pulls a copy of [fileId] from the hub into the host's received folder.
-  /// Returns the downloaded file name (or null on failure) for UI feedback.
-  Future<String?> downloadSharedFile(String fileId) async {
+  /// Pulls a copy of [fileId] from the hub to this device: photos land in the
+  /// gallery, other files in documents. Returns the result (or null on
+  /// failure) for UI feedback.
+  Future<DownloadedFile?> downloadSharedFile(String fileId) async {
     try {
       final downloaded = await downloadSharedFileUseCase.execute(fileId);
-      return downloaded?.name;
+      return downloaded;
     } catch (error, stack) {
       AppLogger.error('Failed to download shared file', error, stack);
       if (!isClosed) {

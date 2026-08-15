@@ -26,8 +26,10 @@ import '../../features/p2p/domain/use_cases/watch_discovered_peers_use_case.dart
 import '../../features/p2p/domain/use_cases/watch_incoming_requests_use_case.dart';
 import '../../features/p2p/domain/use_cases/watch_transfer_updates_use_case.dart';
 import '../../features/p2p/presentation/cubit/p2p_cubit.dart';
+import '../../features/server/data/datasources/device_media_store.dart';
 import '../../features/server/data/datasources/host_file_picker.dart';
 import '../../features/server/data/datasources/local_ip_resolver.dart';
+import '../../features/server/data/datasources/media_store.dart';
 import '../../features/server/data/datasources/shelf_web_server_transport.dart';
 import '../../features/server/data/datasources/web_client_assets.dart';
 import '../../features/server/data/datasources/web_server_transport.dart';
@@ -160,11 +162,13 @@ Future<void> setupLocator() async {
     ..registerLazySingleton<LocalIpResolver>(NetworkLocalIpResolver.new)
     ..registerLazySingleton<WebClientAssets>(BundledWebClientAssets.new)
     ..registerLazySingleton<HostFilePicker>(SystemHostFilePicker.new)
+    ..registerLazySingleton<MediaStore>(DeviceMediaStore.new)
     ..registerLazySingleton<WebServerTransport>(
       () => ShelfWebServerTransport(
         ipResolver: sl<LocalIpResolver>(),
         assets: sl<WebClientAssets>(),
         sharedDirectoryProvider: () => StoragePaths.inboxDirectory,
+        mediaStore: sl<MediaStore>(),
       ),
     )
     ..registerLazySingleton<ServerRepository>(
