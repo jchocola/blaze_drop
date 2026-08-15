@@ -121,15 +121,15 @@ abstract final class AppConstants {
   static const String appBuildNumberFallback = '0';
 
   /// Fallback application/package id (mirrors the Android `applicationId`).
-  static const String appPackageNameFallback = 'com.example.blaze_drop';
+  static const String appPackageNameFallback = 'com.jchocola.blaze_drop';
 
   // --- Module D: Legal links (external, open via `url_launcher`) ----------
 
   /// External Privacy Policy URL (placeholder — set before release).
-  static const String privacyPolicyUrl = '';
+  static const String privacyPolicyUrl = 'https://docs.google.com/document/d/1cJxDUOEvpnUyYLCAebQSN17ImugS4xR_siEwqgPE_-g/edit?usp=share_link';
 
   /// External Terms of Service URL (placeholder — set before release).
-  static const String termsOfServiceUrl = '';
+  static const String termsOfServiceUrl = 'https://docs.google.com/document/d/1PMU9PtvbeP3eizKMBs9sMsWZdUoyrQ_21yAAZJLU6nA/edit?usp=share_link';
 }
 
 /// Keys used for local persistence.
