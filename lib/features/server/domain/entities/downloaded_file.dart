@@ -17,6 +17,7 @@ class DownloadedFile extends Equatable {
     required this.name,
     required this.target,
     this.path = '',
+    this.size = 0,
   });
 
   /// Stored file name.
@@ -28,6 +29,9 @@ class DownloadedFile extends Equatable {
   /// empty) for [DownloadTarget.gallery] items living in the photo library.
   final String path;
 
+  /// Size in bytes (0 when unknown, e.g. gallery imports).
+  final int size;
+
   @override
-  List<Object?> get props => [name, target, path];
+  List<Object?> get props => [name, target, path, size];
 }

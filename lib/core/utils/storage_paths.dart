@@ -31,4 +31,19 @@ abstract final class StoragePaths {
     await dir.create(recursive: true);
     return dir.path;
   }
+
+  /// Hub staging cache for Server Mode uploads and host publications.
+  ///
+  /// Cleared on every server start (FUNCTIONALITY.md §7 auto-cleanup) so each
+  /// session begins empty. Kept separate from [inboxDirectory] (P2P inbox)
+  /// and [receivedDirectory] so clearing it never touches received files.
+  static Future<String> get hubCacheDirectory async {
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(
+      '${docs.path}${Platform.pathSeparator}BlazeDrop'
+      '${Platform.pathSeparator}HubCache',
+    );
+    await dir.create(recursive: true);
+    return dir.path;
+  }
 }

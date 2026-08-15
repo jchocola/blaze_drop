@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:blaze_drop/core/config/app_config.dart';
 import 'package:blaze_drop/core/config/settings_repository.dart';
+import 'package:blaze_drop/core/history/history_file.dart';
+import 'package:blaze_drop/core/history/history_repository.dart';
+import 'package:blaze_drop/core/history/session_record.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
 import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
 import 'package:blaze_drop/features/server/domain/entities/host_publish_file.dart';
@@ -47,6 +50,8 @@ class _MockDownloadSharedFile extends Mock
 
 class _MockSettingsRepository extends Mock implements SettingsRepository {}
 
+class _MockHistoryRepository extends Mock implements HistoryRepository {}
+
 const _activeSession = ServerSession(
   status: ServerStatus.active,
   port: 8080,
@@ -81,6 +86,16 @@ const _hostFile = HostPublishFile(
 );
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(
+      const HistoryFile(
+        name: 'fb.bin',
+        size: 0,
+        kind: HistoryFileKind.received,
+      ),
+    );
+  });
+
   group('ServerCubit', () {
     late _MockStartServer startServer;
     late _MockStopServer stopServer;
@@ -93,6 +108,7 @@ void main() {
     late _MockPublishFiles publishFiles;
     late _MockDownloadSharedFile downloadSharedFile;
     late _MockSettingsRepository settingsRepository;
+    late _MockHistoryRepository historyRepository;
     late StreamController<ServerSession> statusController;
     late StreamController<List<ConnectedClient>> clientsController;
     late StreamController<ServerUploadEvent> uploadsController;
@@ -109,6 +125,7 @@ void main() {
       publishFiles = _MockPublishFiles();
       downloadSharedFile = _MockDownloadSharedFile();
       settingsRepository = _MockSettingsRepository();
+      historyRepository = _MockHistoryRepository();
       statusController = StreamController<ServerSession>.broadcast();
       clientsController =
           StreamController<List<ConnectedClient>>.broadcast();
@@ -129,6 +146,17 @@ void main() {
       when(
         () => listFiles.execute(),
       ).thenAnswer((_) async => const [_sharedFile]);
+      when(
+        () => historyRepository.startSession(),
+      ).thenAnswer(
+        (_) async => SessionRecord(id: 'test', startedAt: DateTime.now()),
+      );
+      when(
+        () => historyRepository.endSession(),
+      ).thenAnswer((_) async {});
+      when(
+        () => historyRepository.addFile(any()),
+      ).thenAnswer((_) async {});
     });
 
     tearDown(() async {
@@ -150,6 +178,7 @@ void main() {
         publishFilesUseCase: publishFiles,
         downloadSharedFileUseCase: downloadSharedFile,
         settingsRepository: settingsRepository,
+        historyRepository: historyRepository,
       );
     }
 
@@ -360,6 +389,104 @@ void main() {
       final cubit = buildCubit();
 
       expect(await cubit.downloadSharedFile('nope.pdf'), isNull);
+    });
+
+    // --- History recording -------------------------------------------------
+
+    test('startServer opens a history session', () async {
+      when(
+        () => startServer.execute(
+          sessionTimeoutMinutes: any(named: 'sessionTimeoutMinutes'),
+        ),
+      ).thenAnswer((_) async => _activeSession);
+      when(
+        () => listFiles.execute(),
+      ).thenAnswer((_) async => const <ServerSharedFile>[]);
+
+      final cubit = buildCubit();
+      await cubit.startServer();
+
+      verify(() => historyRepository.startSession()).called(1);
+    });
+
+    test('completed uploads record a received history entry', () async {
+      final cubit = buildCubit();
+      await cubit.initialize();
+
+      uploadsController.add(_completedUpload);
+      await Future<void>.delayed(Duration.zero);
+
+      verify(
+        () => historyRepository.addFile(
+          any(
+            that: isA<HistoryFile>().having(
+              (f) => f.kind,
+              'kind',
+              HistoryFileKind.received,
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('stopServer closes the history session', () async {
+      when(() => stopServer.execute()).thenAnswer((_) async {});
+      final cubit = buildCubit();
+
+      await cubit.stopServer();
+
+      verify(() => historyRepository.endSession()).called(1);
+    });
+
+    test('pickAndPublishFiles records published history entries', () async {
+      when(
+        () => pickHostFiles.execute(),
+      ).thenAnswer((_) async => const [_hostFile]);
+      when(
+        () => publishFiles.execute(any()),
+      ).thenAnswer((_) async => const [_sharedFile]);
+
+      final cubit = buildCubit();
+      await cubit.pickAndPublishFiles();
+
+      verify(
+        () => historyRepository.addFile(
+          any(
+            that: isA<HistoryFile>().having(
+              (f) => f.kind,
+              'kind',
+              HistoryFileKind.published,
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('downloadSharedFile records a downloaded history entry', () async {
+      const downloaded = DownloadedFile(
+        name: 'report.pdf',
+        target: DownloadTarget.documents,
+        path: '/tmp/report.pdf',
+        size: 100,
+      );
+      when(
+        () => downloadSharedFile.execute('report.pdf'),
+      ).thenAnswer((_) async => downloaded);
+
+      final cubit = buildCubit();
+      await cubit.downloadSharedFile('report.pdf');
+
+      verify(
+        () => historyRepository.addFile(
+          any(
+            that: isA<HistoryFile>().having(
+              (f) => f.kind,
+              'kind',
+              HistoryFileKind.downloaded,
+            ),
+          ),
+        ),
+      ).called(1);
     });
   });
 }

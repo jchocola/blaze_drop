@@ -89,6 +89,18 @@ class ShelfWebServerTransport implements WebServerTransport {
   Future<ServerSession> start({
     required int preferredPort,
     required int sessionTimeoutMinutes,
+  }) {
+    return _start(
+      preferredPort: preferredPort,
+      sessionTimeoutMinutes: sessionTimeoutMinutes,
+      clearStorage: true,
+    );
+  }
+
+  Future<ServerSession> _start({
+    required int preferredPort,
+    required int sessionTimeoutMinutes,
+    required bool clearStorage,
   }) async {
     _preferredPort = preferredPort;
     _lastSessionTimeoutMinutes = sessionTimeoutMinutes > 0
@@ -111,6 +123,12 @@ class ShelfWebServerTransport implements WebServerTransport {
       }
     }
     server ??= await shelf_io.serve(handler, InternetAddress.anyIPv4, 0);
+
+    // A fresh session starts with an empty upload cache (FUNCTIONALITY.md §7
+    // auto-cleanup); a port refresh keeps its files.
+    if (clearStorage) {
+      await _clearSharedDirectory(await _sharedDirectory());
+    }
 
     _server = server;
     _session = ServerSession(
@@ -151,9 +169,10 @@ class ShelfWebServerTransport implements WebServerTransport {
   Future<void> refresh() async {
     final nextPort = _preferredPort + 1;
     await stop();
-    await start(
+    await _start(
       preferredPort: nextPort,
       sessionTimeoutMinutes: _lastSessionTimeoutMinutes,
+      clearStorage: false,
     );
   }
 
@@ -524,8 +543,28 @@ class ShelfWebServerTransport implements WebServerTransport {
 
   Future<String> _sharedDirectory() => _sharedDirectoryProvider();
 
+  /// Empties the hub staging cache so a fresh server session starts clean.
+  Future<void> _clearSharedDirectory(String dir) async {
+    final directory = Directory(dir);
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+      return;
+    }
+    await for (final entity in directory.list(followLinks: false)) {
+      try {
+        await entity.delete(recursive: true);
+      } catch (error, stack) {
+        AppLogger.error(
+          'Failed to clear hub cache: ${entity.path}',
+          error,
+          stack,
+        );
+      }
+    }
+  }
+
   static Future<String> _defaultSharedDirectory() =>
-      StoragePaths.inboxDirectory;
+      StoragePaths.hubCacheDirectory;
 
   Future<List<ServerSharedFile>> _scanDirectory(String dir) async {
     final directory = Directory(dir);

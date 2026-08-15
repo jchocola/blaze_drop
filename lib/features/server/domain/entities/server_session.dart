@@ -41,9 +41,10 @@ class ServerSession extends Equatable {
   String get url =>
       (localIp.isEmpty || port == 0) ? '' : 'http://$localIp:$port';
 
-  /// Raw `tcp://ip:port` form shown on the "DIRECT CONNECT IP" readout.
+  /// Browser-openable `http://ip:port` form shown on the "DIRECT CONNECT IP"
+  /// readout (guests connect via HTTP, not a raw TCP socket).
   String get directConnect =>
-      (localIp.isEmpty || port == 0) ? '' : 'tcp://$localIp:$port';
+      (localIp.isEmpty || port == 0) ? '' : 'http://$localIp:$port';
 
   bool get isActive => status == ServerStatus.active;
 

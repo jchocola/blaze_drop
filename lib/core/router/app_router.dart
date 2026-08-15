@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/onboarding/presentation/pages/splash_page.dart';
@@ -52,6 +53,14 @@ final GoRouter appRouter = GoRouter(
             GoRoute(
               path: AppConstants.homePath,
               builder: (context, state) => const HomePage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: AppConstants.historyPath,
+              builder: (context, state) => const HistoryPage(),
             ),
           ],
         ),

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:blaze_drop/core/config/app_config.dart';
 import 'package:blaze_drop/core/config/settings_repository.dart';
 import 'package:blaze_drop/core/constants/constants.dart';
+import 'package:blaze_drop/core/history/history_file.dart';
+import 'package:blaze_drop/core/history/history_repository.dart';
+import 'package:blaze_drop/core/history/session_record.dart';
 import 'package:blaze_drop/core/theme/theme.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
 import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
@@ -50,6 +53,8 @@ class _MockDownloadSharedFile extends Mock
 
 class _MockSettingsRepository extends Mock implements SettingsRepository {}
 
+class _MockHistoryRepository extends Mock implements HistoryRepository {}
+
 const _activeSession = ServerSession(
   status: ServerStatus.active,
   port: 8080,
@@ -64,6 +69,16 @@ const _sharedFile = ServerSharedFile(
 );
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(
+      const HistoryFile(
+        name: 'fb.bin',
+        size: 0,
+        kind: HistoryFileKind.received,
+      ),
+    );
+  });
+
   late _MockStartServer startServer;
   late _MockStopServer stopServer;
   late _MockRefreshServer refreshServer;
@@ -75,6 +90,7 @@ void main() {
   late _MockPublishFiles publishFiles;
   late _MockDownloadSharedFile downloadSharedFile;
   late _MockSettingsRepository settingsRepository;
+  late _MockHistoryRepository historyRepository;
   late StreamController<ServerSession> statusController;
   late StreamController<List<ConnectedClient>> clientsController;
   late StreamController<ServerUploadEvent> uploadsController;
@@ -91,6 +107,7 @@ void main() {
     publishFiles = _MockPublishFiles();
     downloadSharedFile = _MockDownloadSharedFile();
     settingsRepository = _MockSettingsRepository();
+    historyRepository = _MockHistoryRepository();
     statusController = StreamController<ServerSession>.broadcast();
     clientsController = StreamController<List<ConnectedClient>>.broadcast();
     uploadsController = StreamController<ServerUploadEvent>.broadcast();
@@ -111,6 +128,17 @@ void main() {
       ),
     ).thenAnswer((_) async => _activeSession);
     when(() => listFiles.execute()).thenAnswer((_) async => const [_sharedFile]);
+    when(
+      () => historyRepository.startSession(),
+    ).thenAnswer(
+      (_) async => SessionRecord(id: 'test', startedAt: DateTime.now()),
+    );
+    when(
+      () => historyRepository.endSession(),
+    ).thenAnswer((_) async {});
+    when(
+      () => historyRepository.addFile(any()),
+    ).thenAnswer((_) async {});
   });
 
   tearDown(() async {
@@ -132,6 +160,7 @@ void main() {
       publishFilesUseCase: publishFiles,
       downloadSharedFileUseCase: downloadSharedFile,
       settingsRepository: settingsRepository,
+      historyRepository: historyRepository,
     );
   }
 
@@ -167,7 +196,7 @@ void main() {
     expect(find.text('SERVER ACTIVE'), findsOneWidget);
     expect(find.text('LOCAL_BROADCAST_BEACON'), findsOneWidget);
     expect(find.text('STOP SERVER'), findsOneWidget);
-    expect(find.text('tcp://192.168.1.10:8080'), findsOneWidget);
+    expect(find.text('http://192.168.1.10:8080'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('manifest.json'),

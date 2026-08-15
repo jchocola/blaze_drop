@@ -36,6 +36,10 @@ class AppShell extends StatelessWidget {
             label: 'HOME',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.history_outlined),
+            label: 'HISTORY',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             label: 'SETTINGS',
           ),

@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/config/settings_repository.dart';
 import '../../../../core/constants/constants.dart';
+import '../../../../core/history/history_file.dart';
+import '../../../../core/history/history_repository.dart';
+import '../../../../core/utils/file_utils.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/connected_client.dart';
 import '../../domain/entities/downloaded_file.dart';
@@ -39,7 +42,9 @@ class ServerCubit extends Cubit<ServerState> {
     required this.publishFilesUseCase,
     required this.downloadSharedFileUseCase,
     required SettingsRepository settingsRepository,
+    required HistoryRepository historyRepository,
   }) : _settingsRepository = settingsRepository,
+       _historyRepository = historyRepository,
        super(const ServerState());
 
   final StartServerUseCase startServerUseCase;
@@ -53,6 +58,7 @@ class ServerCubit extends Cubit<ServerState> {
   final PublishFilesUseCase publishFilesUseCase;
   final DownloadSharedFileUseCase downloadSharedFileUseCase;
   final SettingsRepository _settingsRepository;
+  final HistoryRepository _historyRepository;
 
   StreamSubscription<ServerSession>? _statusSub;
   StreamSubscription<List<ConnectedClient>>? _clientsSub;
@@ -103,6 +109,11 @@ class ServerCubit extends Cubit<ServerState> {
         // for a server restart.
         if (event.status == ServerUploadStatus.completed) {
           refreshFiles();
+          _recordFile(
+            name: event.fileName,
+            size: event.totalBytes,
+            kind: HistoryFileKind.received,
+          );
         }
       },
       onError: _onStreamError,
@@ -133,6 +144,7 @@ class ServerCubit extends Cubit<ServerState> {
         emit(state.copyWith(session: session));
       }
       AppLogger.info('Relay hub started on port ${session.port}');
+      _historyRepository.startSession();
       await refreshFiles();
     } catch (error, stack) {
       AppLogger.error('Failed to start relay hub', error, stack);
@@ -149,6 +161,7 @@ class ServerCubit extends Cubit<ServerState> {
     } catch (error, stack) {
       AppLogger.error('Failed to stop relay hub', error, stack);
     }
+    _historyRepository.endSession();
     if (!isClosed) {
       emit(
         state.copyWith(
@@ -200,8 +213,16 @@ class ServerCubit extends Cubit<ServerState> {
     try {
       final files = await pickHostFilesUseCase.execute();
       if (files.isNotEmpty && !isClosed) {
-        await publishFilesUseCase.execute(files);
+        final result = await publishFilesUseCase.execute(files);
         published = true;
+        for (final file in result) {
+          _recordFile(
+            name: file.name,
+            size: file.size,
+            mimeType: file.mimeType,
+            kind: HistoryFileKind.published,
+          );
+        }
         AppLogger.info('Published ${files.length} file(s) to the hub');
       }
     } catch (error, stack) {
@@ -227,6 +248,13 @@ class ServerCubit extends Cubit<ServerState> {
   Future<DownloadedFile?> downloadSharedFile(String fileId) async {
     try {
       final downloaded = await downloadSharedFileUseCase.execute(fileId);
+      if (downloaded != null) {
+        _recordFile(
+          name: downloaded.name,
+          size: downloaded.size,
+          kind: HistoryFileKind.downloaded,
+        );
+      }
       return downloaded;
     } catch (error, stack) {
       AppLogger.error('Failed to download shared file', error, stack);
@@ -235,6 +263,24 @@ class ServerCubit extends Cubit<ServerState> {
       }
       return null;
     }
+  }
+
+  /// Appends a file to the transfer history (best-effort, never blocks).
+  void _recordFile({
+    required String name,
+    required int size,
+    required HistoryFileKind kind,
+    String? mimeType,
+  }) {
+    _historyRepository.addFile(
+      HistoryFile(
+        name: name,
+        size: size,
+        kind: kind,
+        mimeType: mimeType ?? FileUtils.mimeTypeForName(name),
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   /// Clears the HUD transfer log.

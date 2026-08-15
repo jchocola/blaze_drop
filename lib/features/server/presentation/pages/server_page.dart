@@ -352,7 +352,7 @@ class _BeaconCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         session.directConnect.isEmpty
-                            ? 'tcp://—'
+                            ? 'http://—'
                             : session.directConnect,
                         style: AppTextStyles.codeSm.copyWith(
                           color: AppColors.primaryContainer,

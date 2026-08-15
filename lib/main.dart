@@ -5,6 +5,7 @@ import 'core/constants/constants.dart';
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/theme.dart';
+import 'features/history/presentation/cubit/history_cubit.dart';
 import 'features/onboarding/presentation/cubit/onboarding_cubit.dart';
 import 'features/p2p/presentation/cubit/p2p_cubit.dart';
 import 'features/server/presentation/cubit/server_cubit.dart';
@@ -24,6 +25,7 @@ Future<void> main() async {
 /// - [P2pCubit] drives the Module B P2P flow (discovery → transfer).
 /// - [SettingsCubit] drives the SYSTEM CONFIG (settings) screen.
 /// - [ServerCubit] drives the Module C host-web server screen.
+/// - [HistoryCubit] drives the TRANSFER HISTORY tab.
 class BlazeDropApp extends StatelessWidget {
   const BlazeDropApp({super.key});
 
@@ -42,6 +44,9 @@ class BlazeDropApp extends StatelessWidget {
         ),
         BlocProvider<ServerCubit>(
           create: (_) => sl<ServerCubit>(),
+        ),
+        BlocProvider<HistoryCubit>(
+          create: (_) => sl<HistoryCubit>(),
         ),
       ],
       child: MaterialApp.router(

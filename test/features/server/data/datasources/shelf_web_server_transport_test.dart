@@ -113,7 +113,23 @@ void main() {
     expect(session.localIp, '192.168.1.10');
     expect(session.port, greaterThan(0));
     expect(session.url, 'http://192.168.1.10:${session.port}');
-    expect(session.directConnect, 'tcp://192.168.1.10:${session.port}');
+    expect(session.directConnect, 'http://192.168.1.10:${session.port}');
+  });
+
+  test('starting the server clears the upload cache', () async {
+    // A stale file from a previous session lives in the shared cache dir.
+    final stale = File('${tempDir.path}/stale_upload.zip');
+    await stale.writeAsString('leftover');
+    expect(await stale.exists(), isTrue);
+
+    final session = await startHub();
+
+    expect(await stale.exists(), isFalse);
+
+    final filesResponse = await http.get(hubUri(session, '/files'));
+    expect(filesResponse.statusCode, 200);
+    final filesJson = jsonDecode(filesResponse.body) as Map<String, dynamic>;
+    expect(filesJson['files'], isEmpty);
   });
 
   test('serves the embedded web client at GET /', () async {

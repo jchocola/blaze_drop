@@ -14,6 +14,11 @@ abstract final class AppConstants {
   static const String p2pTransferPath = '/p2p/transfer';
   static const String serverPath = '/server';
   static const String settingsPath = '/settings';
+  static const String historyPath = '/history';
+
+  /// Number of most-recent server sessions kept in the transfer history
+  /// (FUNCTIONALITY.md mock "HISTORY"; older sessions are pruned).
+  static const int maxHistorySessions = 3;
 
   /// Timing.
   static const Duration splashDuration = Duration(milliseconds: 2000);
@@ -96,4 +101,7 @@ abstract final class StorageKeys {
   static const String configSessionTimeout = 'config_session_timeout';
   static const String configDarkMode = 'config_dark_mode';
   static const String configShowHudLogs = 'config_show_hud_logs';
+
+  // Transfer history (server sessions archive).
+  static const String transferHistory = 'transfer_history';
 }

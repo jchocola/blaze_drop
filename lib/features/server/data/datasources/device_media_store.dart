@@ -50,8 +50,13 @@ class DeviceMediaStore implements MediaStore {
         await Gal.requestAccess(toAlbum: true);
       }
       await Gal.putImage(sourcePath);
+      final size = await File(sourcePath).length();
       AppLogger.info('Saved $fileName to the photo gallery');
-      return DownloadedFile(name: fileName, target: DownloadTarget.gallery);
+      return DownloadedFile(
+        name: fileName,
+        target: DownloadTarget.gallery,
+        size: size,
+      );
     } catch (error, stack) {
       AppLogger.error('Failed to save image to gallery', error, stack);
       throw ServerTransferException(
@@ -68,11 +73,13 @@ class DeviceMediaStore implements MediaStore {
     final target = await FileUtils.resolveUniquePath(dir, fileName);
     await File(sourcePath).copy(target);
     final savedName = p.basename(target);
+    final size = await File(target).length();
     AppLogger.info('Saved $savedName to documents');
     return DownloadedFile(
       name: savedName,
       target: DownloadTarget.documents,
       path: target,
+      size: size,
     );
   }
 }

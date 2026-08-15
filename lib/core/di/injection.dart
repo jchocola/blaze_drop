@@ -52,7 +52,14 @@ import '../../features/settings/domain/use_cases/load_config_use_case.dart';
 import '../../features/settings/domain/use_cases/reset_config_use_case.dart';
 import '../../features/settings/domain/use_cases/save_config_use_case.dart';
 import '../../features/settings/presentation/cubit/settings_cubit.dart';
+import '../../features/history/data/datasources/history_local_data_source.dart';
+import '../../features/history/data/repositories_impl/history_repository_impl.dart';
+import '../../features/history/domain/use_cases/clear_history_use_case.dart';
+import '../../features/history/domain/use_cases/get_history_use_case.dart';
+import '../../features/history/domain/use_cases/watch_history_use_case.dart';
+import '../../features/history/presentation/cubit/history_cubit.dart';
 import '../config/settings_repository.dart';
+import '../history/history_repository.dart';
 import '../utils/storage_paths.dart';
 
 /// Service locator (get_it). Configure once at app startup (RULE.md §3).
@@ -163,11 +170,17 @@ Future<void> setupLocator() async {
     ..registerLazySingleton<WebClientAssets>(BundledWebClientAssets.new)
     ..registerLazySingleton<HostFilePicker>(SystemHostFilePicker.new)
     ..registerLazySingleton<MediaStore>(DeviceMediaStore.new)
+    ..registerLazySingleton<HistoryLocalDataSource>(
+      () => HistoryLocalDataSource(prefs),
+    )
+    ..registerLazySingleton<HistoryRepository>(
+      () => LocalHistoryRepositoryImpl(sl<HistoryLocalDataSource>()),
+    )
     ..registerLazySingleton<WebServerTransport>(
       () => ShelfWebServerTransport(
         ipResolver: sl<LocalIpResolver>(),
         assets: sl<WebClientAssets>(),
-        sharedDirectoryProvider: () => StoragePaths.inboxDirectory,
+        sharedDirectoryProvider: () => StoragePaths.hubCacheDirectory,
         mediaStore: sl<MediaStore>(),
       ),
     )
@@ -204,6 +217,12 @@ Future<void> setupLocator() async {
     ..registerLazySingleton(
       () => DownloadSharedFileUseCase(sl<ServerRepository>()),
     );
+
+  // Domain use cases (History / TRANSFER HISTORY).
+  sl
+    ..registerLazySingleton(() => WatchHistoryUseCase(sl<HistoryRepository>()))
+    ..registerLazySingleton(() => GetHistoryUseCase(sl<HistoryRepository>()))
+    ..registerLazySingleton(() => ClearHistoryUseCase(sl<HistoryRepository>()));
 
   // Presentation.
   sl.registerFactory(
@@ -246,6 +265,14 @@ Future<void> setupLocator() async {
       publishFilesUseCase: sl<PublishFilesUseCase>(),
       downloadSharedFileUseCase: sl<DownloadSharedFileUseCase>(),
       settingsRepository: sl<SettingsRepository>(),
+      historyRepository: sl<HistoryRepository>(),
+    ),
+  );
+  sl.registerFactory(
+    () => HistoryCubit(
+      getHistoryUseCase: sl<GetHistoryUseCase>(),
+      watchHistoryUseCase: sl<WatchHistoryUseCase>(),
+      clearHistoryUseCase: sl<ClearHistoryUseCase>(),
     ),
   );
 }
