@@ -8,6 +8,7 @@ import 'package:blaze_drop/features/server/domain/repositories/server_repository
 import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
@@ -47,12 +48,14 @@ void main() {
 
     test('StartServerUseCase delegates with the session timeout', () async {
       when(
-        () => repository.startServer(sessionTimeoutMinutes: any(named: 'sessionTimeoutMinutes')),
+        () => repository.startServer(
+          sessionTimeoutMinutes: any(named: 'sessionTimeoutMinutes'),
+        ),
       ).thenAnswer((_) async => _activeSession);
 
-      final result = await StartServerUseCase(repository).execute(
-        sessionTimeoutMinutes: 30,
-      );
+      final result = await StartServerUseCase(
+        repository,
+      ).execute(sessionTimeoutMinutes: 30);
 
       expect(result, _activeSession);
       verify(() => repository.startServer(sessionTimeoutMinutes: 30)).called(1);
@@ -79,9 +82,9 @@ void main() {
       when(() => repository.watchStatus()).thenAnswer((_) => controller.stream);
 
       final events = <ServerSession>[];
-      final subscription = WatchServerStatusUseCase(repository)
-          .execute()
-          .listen(events.add);
+      final subscription = WatchServerStatusUseCase(
+        repository,
+      ).execute().listen(events.add);
 
       controller.add(_activeSession);
       await Future<void>.delayed(Duration.zero);
@@ -92,9 +95,9 @@ void main() {
     });
 
     test('ListSharedFilesUseCase returns the shared files', () async {
-      when(() => repository.listSharedFiles()).thenAnswer((_) async => [
-        _publishedFile,
-      ]);
+      when(
+        () => repository.listSharedFiles(),
+      ).thenAnswer((_) async => [_publishedFile]);
 
       final result = await ListSharedFilesUseCase(repository).execute();
 
@@ -102,13 +105,24 @@ void main() {
     });
 
     test('PickHostFilesUseCase returns the staged host files', () async {
-      when(() => repository.pickHostFiles()).thenAnswer((_) async => [
-        _hostFile,
-      ]);
+      when(
+        () => repository.pickHostFiles(),
+      ).thenAnswer((_) async => [_hostFile]);
 
       final result = await PickHostFilesUseCase(repository).execute();
 
       expect(result, [_hostFile]);
+    });
+
+    test('PickHostGalleryPhotosUseCase returns the staged photos', () async {
+      when(
+        () => repository.pickHostGalleryPhotos(),
+      ).thenAnswer((_) async => [_hostFile]);
+
+      final result = await PickHostGalleryPhotosUseCase(repository).execute();
+
+      expect(result, [_hostFile]);
+      verify(() => repository.pickHostGalleryPhotos()).called(1);
     });
 
     test('PublishFilesUseCase publishes the staged files', () async {
@@ -116,9 +130,9 @@ void main() {
         () => repository.publishFiles(any()),
       ).thenAnswer((_) async => [_publishedFile]);
 
-      final result = await PublishFilesUseCase(repository).execute(
-        const [_hostFile],
-      );
+      final result = await PublishFilesUseCase(
+        repository,
+      ).execute(const [_hostFile]);
 
       expect(result, [_publishedFile]);
       verify(() => repository.publishFiles(const [_hostFile])).called(1);
@@ -133,9 +147,9 @@ void main() {
         () => repository.downloadSharedFile(any()),
       ).thenAnswer((_) async => downloaded);
 
-      final result = await DownloadSharedFileUseCase(repository).execute(
-        'photo.png',
-      );
+      final result = await DownloadSharedFileUseCase(
+        repository,
+      ).execute('photo.png');
 
       expect(result, downloaded);
       verify(() => repository.downloadSharedFile('photo.png')).called(1);

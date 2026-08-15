@@ -10,11 +10,13 @@ import '../../../../core/utils/file_utils.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/connected_client.dart';
 import '../../domain/entities/downloaded_file.dart';
+import '../../domain/entities/host_publish_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_upload_event.dart';
 import '../../domain/use_cases/download_shared_file_use_case.dart';
 import '../../domain/use_cases/list_shared_files_use_case.dart';
 import '../../domain/use_cases/pick_host_files_use_case.dart';
+import '../../domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import '../../domain/use_cases/publish_files_use_case.dart';
 import '../../domain/use_cases/refresh_server_use_case.dart';
 import '../../domain/use_cases/start_server_use_case.dart';
@@ -39,6 +41,7 @@ class ServerCubit extends Cubit<ServerState> {
     required this.watchUploadsUseCase,
     required this.listSharedFilesUseCase,
     required this.pickHostFilesUseCase,
+    required this.pickHostGalleryPhotosUseCase,
     required this.publishFilesUseCase,
     required this.downloadSharedFileUseCase,
     required SettingsRepository settingsRepository,
@@ -55,6 +58,7 @@ class ServerCubit extends Cubit<ServerState> {
   final WatchUploadsUseCase watchUploadsUseCase;
   final ListSharedFilesUseCase listSharedFilesUseCase;
   final PickHostFilesUseCase pickHostFilesUseCase;
+  final PickHostGalleryPhotosUseCase pickHostGalleryPhotosUseCase;
   final PublishFilesUseCase publishFilesUseCase;
   final DownloadSharedFileUseCase downloadSharedFileUseCase;
   final SettingsRepository _settingsRepository;
@@ -79,45 +83,37 @@ class ServerCubit extends Cubit<ServerState> {
     } catch (error, stack) {
       AppLogger.error('Failed to load config for server HUD', error, stack);
     }
-    _statusSub = watchServerStatusUseCase.execute().listen(
-      (session) {
-        if (!isClosed) {
-          emit(state.copyWith(session: session, error: null));
-        }
-      },
-      onError: _onStreamError,
-    );
-    _clientsSub = watchConnectedClientsUseCase.execute().listen(
-      (clients) {
-        if (!isClosed) {
-          emit(state.copyWith(clients: clients));
-        }
-      },
-      onError: _onStreamError,
-    );
-    _uploadsSub = watchUploadsUseCase.execute().listen(
-      (event) {
-        if (isClosed) {
-          return;
-        }
-        final logs = [event, ...state.uploads]
-            .take(AppConstants.serverUploadLogLimit)
-            .toList();
-        emit(state.copyWith(uploads: logs));
-        // A completed transfer (guest upload or host publication) changes the
-        // hub storage — refresh the shareable list live instead of waiting
-        // for a server restart.
-        if (event.status == ServerUploadStatus.completed) {
-          refreshFiles();
-          _recordFile(
-            name: event.fileName,
-            size: event.totalBytes,
-            kind: HistoryFileKind.received,
-          );
-        }
-      },
-      onError: _onStreamError,
-    );
+    _statusSub = watchServerStatusUseCase.execute().listen((session) {
+      if (!isClosed) {
+        emit(state.copyWith(session: session, error: null));
+      }
+    }, onError: _onStreamError);
+    _clientsSub = watchConnectedClientsUseCase.execute().listen((clients) {
+      if (!isClosed) {
+        emit(state.copyWith(clients: clients));
+      }
+    }, onError: _onStreamError);
+    _uploadsSub = watchUploadsUseCase.execute().listen((event) {
+      if (isClosed) {
+        return;
+      }
+      final logs = [
+        event,
+        ...state.uploads,
+      ].take(AppConstants.serverUploadLogLimit).toList();
+      emit(state.copyWith(uploads: logs));
+      // A completed transfer (guest upload or host publication) changes the
+      // hub storage — refresh the shareable list live instead of waiting
+      // for a server restart.
+      if (event.status == ServerUploadStatus.completed) {
+        refreshFiles();
+        _recordFile(
+          name: event.fileName,
+          size: event.totalBytes,
+          kind: HistoryFileKind.received,
+        );
+      }
+    }, onError: _onStreamError);
   }
 
   void _onStreamError(Object error, StackTrace stack) {
@@ -204,14 +200,26 @@ class ServerCubit extends Cubit<ServerState> {
 
   /// Opens the host picker and publishes the chosen files into the hub so
   /// guests can download them (FUNCTIONALITY.md §5.4).
-  Future<void> pickAndPublishFiles() async {
+  Future<void> pickAndPublishFiles() =>
+      _pickAndPublish(() => pickHostFilesUseCase.execute());
+
+  /// Opens the host photo gallery and publishes the chosen photos into the
+  /// hub so guests can download them.
+  Future<void> pickAndPublishGalleryPhotos() =>
+      _pickAndPublish(() => pickHostGalleryPhotosUseCase.execute());
+
+  /// Shared host→hub publication flow: stages files via [pick], publishes
+  /// them into the hub storage and refreshes the shareable list.
+  Future<void> _pickAndPublish(
+    Future<List<HostPublishFile>> Function() pick,
+  ) async {
     if (state.isPublishing) {
       return;
     }
     emit(state.copyWith(isPublishing: true, error: null));
     var published = false;
     try {
-      final files = await pickHostFilesUseCase.execute();
+      final files = await pick();
       if (files.isNotEmpty && !isClosed) {
         final result = await publishFilesUseCase.execute(files);
         published = true;

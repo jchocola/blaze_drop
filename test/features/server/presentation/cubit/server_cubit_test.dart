@@ -14,6 +14,7 @@ import 'package:blaze_drop/features/server/domain/entities/server_upload_event.d
 import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
@@ -42,6 +43,9 @@ class _MockWatchUploads extends Mock implements WatchUploadsUseCase {}
 class _MockListFiles extends Mock implements ListSharedFilesUseCase {}
 
 class _MockPickHostFiles extends Mock implements PickHostFilesUseCase {}
+
+class _MockPickHostGalleryPhotos extends Mock
+    implements PickHostGalleryPhotosUseCase {}
 
 class _MockPublishFiles extends Mock implements PublishFilesUseCase {}
 
@@ -85,6 +89,13 @@ const _hostFile = HostPublishFile(
   size: 42,
 );
 
+const _hostPhoto = HostPublishFile(
+  name: 'photo_001.jpg',
+  path: '/tmp/photo_001.jpg',
+  size: 2048,
+  mimeType: 'image/jpeg',
+);
+
 void main() {
   setUpAll(() {
     registerFallbackValue(
@@ -105,6 +116,7 @@ void main() {
     late _MockWatchUploads watchUploads;
     late _MockListFiles listFiles;
     late _MockPickHostFiles pickHostFiles;
+    late _MockPickHostGalleryPhotos pickHostGalleryPhotos;
     late _MockPublishFiles publishFiles;
     late _MockDownloadSharedFile downloadSharedFile;
     late _MockSettingsRepository settingsRepository;
@@ -122,13 +134,13 @@ void main() {
       watchUploads = _MockWatchUploads();
       listFiles = _MockListFiles();
       pickHostFiles = _MockPickHostFiles();
+      pickHostGalleryPhotos = _MockPickHostGalleryPhotos();
       publishFiles = _MockPublishFiles();
       downloadSharedFile = _MockDownloadSharedFile();
       settingsRepository = _MockSettingsRepository();
       historyRepository = _MockHistoryRepository();
       statusController = StreamController<ServerSession>.broadcast();
-      clientsController =
-          StreamController<List<ConnectedClient>>.broadcast();
+      clientsController = StreamController<List<ConnectedClient>>.broadcast();
       uploadsController = StreamController<ServerUploadEvent>.broadcast();
 
       when(
@@ -146,17 +158,11 @@ void main() {
       when(
         () => listFiles.execute(),
       ).thenAnswer((_) async => const [_sharedFile]);
-      when(
-        () => historyRepository.startSession(),
-      ).thenAnswer(
+      when(() => historyRepository.startSession()).thenAnswer(
         (_) async => SessionRecord(id: 'test', startedAt: DateTime.now()),
       );
-      when(
-        () => historyRepository.endSession(),
-      ).thenAnswer((_) async {});
-      when(
-        () => historyRepository.addFile(any()),
-      ).thenAnswer((_) async {});
+      when(() => historyRepository.endSession()).thenAnswer((_) async {});
+      when(() => historyRepository.addFile(any())).thenAnswer((_) async {});
     });
 
     tearDown(() async {
@@ -175,6 +181,7 @@ void main() {
         watchUploadsUseCase: watchUploads,
         listSharedFilesUseCase: listFiles,
         pickHostFilesUseCase: pickHostFiles,
+        pickHostGalleryPhotosUseCase: pickHostGalleryPhotos,
         publishFilesUseCase: publishFiles,
         downloadSharedFileUseCase: downloadSharedFile,
         settingsRepository: settingsRepository,
@@ -199,9 +206,7 @@ void main() {
           () => settingsRepository.loadConfig(),
         ).thenAnswer((_) async => const AppConfig(showHudLogs: false));
       },
-      expect: () => const [
-        ServerState(hudLogsEnabled: false),
-      ],
+      expect: () => const [ServerState(hudLogsEnabled: false)],
     );
 
     blocTest<ServerCubit, ServerState>(
@@ -209,13 +214,9 @@ void main() {
       build: buildCubit,
       act: (cubit) => cubit.initialize().then((_) => cubit.startServer()),
       setUp: () {
-        when(
-          () => settingsRepository.loadConfig(),
-        ).thenAnswer(
-          (_) async => const AppConfig(
-            showHudLogs: false,
-            sessionTimeoutMinutes: 30,
-          ),
+        when(() => settingsRepository.loadConfig()).thenAnswer(
+          (_) async =>
+              const AppConfig(showHudLogs: false, sessionTimeoutMinutes: 30),
         );
         when(
           () => startServer.execute(
@@ -248,9 +249,7 @@ void main() {
           ),
         ).thenThrow(Exception('boom'));
       },
-      expect: () => const [
-        ServerState(error: 'Server failed to start'),
-      ],
+      expect: () => const [ServerState(error: 'Server failed to start')],
     );
 
     blocTest<ServerCubit, ServerState>(
@@ -301,10 +300,7 @@ void main() {
       },
       expect: () => [
         const ServerState(hudLogsEnabled: true),
-        const ServerState(
-          hudLogsEnabled: true,
-          uploads: [_completedUpload],
-        ),
+        const ServerState(hudLogsEnabled: true, uploads: [_completedUpload]),
         const ServerState(
           hudLogsEnabled: true,
           uploads: [_completedUpload],
@@ -353,14 +349,46 @@ void main() {
         when(
           () => pickHostFiles.execute(),
         ).thenAnswer((_) async => const [_hostFile]);
-        when(
-          () => publishFiles.execute(any()),
-        ).thenThrow(Exception('boom'));
+        when(() => publishFiles.execute(any())).thenThrow(Exception('boom'));
       },
       expect: () => const [
         ServerState(isPublishing: true),
         ServerState(isPublishing: true, error: 'Failed to publish files'),
         ServerState(isPublishing: false, error: 'Failed to publish files'),
+      ],
+    );
+
+    blocTest<ServerCubit, ServerState>(
+      'pickAndPublishGalleryPhotos publishes gallery photos and refreshes',
+      build: buildCubit,
+      act: (cubit) => cubit.pickAndPublishGalleryPhotos(),
+      setUp: () {
+        when(
+          () => pickHostGalleryPhotos.execute(),
+        ).thenAnswer((_) async => const [_hostPhoto]);
+        when(
+          () => publishFiles.execute(any()),
+        ).thenAnswer((_) async => const [_sharedFile]);
+      },
+      expect: () => const [
+        ServerState(isPublishing: true),
+        ServerState(isPublishing: false),
+        ServerState(isPublishing: false, sharedFiles: [_sharedFile]),
+      ],
+    );
+
+    blocTest<ServerCubit, ServerState>(
+      'pickAndPublishGalleryPhotos skips when nothing is picked',
+      build: buildCubit,
+      act: (cubit) => cubit.pickAndPublishGalleryPhotos(),
+      setUp: () {
+        when(
+          () => pickHostGalleryPhotos.execute(),
+        ).thenAnswer((_) async => const []);
+      },
+      expect: () => const [
+        ServerState(isPublishing: true),
+        ServerState(isPublishing: false),
       ],
     );
 
@@ -461,6 +489,33 @@ void main() {
         ),
       ).called(1);
     });
+
+    test(
+      'pickAndPublishGalleryPhotos records published history entries',
+      () async {
+        when(
+          () => pickHostGalleryPhotos.execute(),
+        ).thenAnswer((_) async => const [_hostPhoto]);
+        when(
+          () => publishFiles.execute(any()),
+        ).thenAnswer((_) async => const [_sharedFile]);
+
+        final cubit = buildCubit();
+        await cubit.pickAndPublishGalleryPhotos();
+
+        verify(
+          () => historyRepository.addFile(
+            any(
+              that: isA<HistoryFile>().having(
+                (f) => f.kind,
+                'kind',
+                HistoryFileKind.published,
+              ),
+            ),
+          ),
+        ).called(1);
+      },
+    );
 
     test('downloadSharedFile records a downloaded history entry', () async {
       const downloaded = DownloadedFile(

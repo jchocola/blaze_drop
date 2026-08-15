@@ -63,8 +63,7 @@ void main() {
       final statusController = StreamController<ServerSession>.broadcast();
       final clientsController =
           StreamController<List<ConnectedClient>>.broadcast();
-      final uploadsController =
-          StreamController<ServerUploadEvent>.broadcast();
+      final uploadsController = StreamController<ServerUploadEvent>.broadcast();
 
       when(() => transport.stop()).thenAnswer((_) async {});
       when(() => transport.refresh()).thenAnswer((_) async {});
@@ -113,40 +112,47 @@ void main() {
       await uploadsController.close();
     });
 
-    test('delegates pick / publish / download to the host picker + transport',
-        () async {
-      final repository = buildRepository();
-      const staged = HostPublishFile(
-        name: 'deploy.zip',
-        path: '/tmp/deploy.zip',
-        size: 42,
-      );
-      const published = ServerSharedFile(
-        id: 'deploy.zip',
-        name: 'deploy.zip',
-        path: '/shared/deploy.zip',
-        size: 42,
-      );
-      const downloaded = DownloadedFile(
-        name: 'photo.png',
-        target: DownloadTarget.gallery,
-      );
+    test(
+      'delegates pick / publish / download to the host picker + transport',
+      () async {
+        final repository = buildRepository();
+        const staged = HostPublishFile(
+          name: 'deploy.zip',
+          path: '/tmp/deploy.zip',
+          size: 42,
+        );
+        const published = ServerSharedFile(
+          id: 'deploy.zip',
+          name: 'deploy.zip',
+          path: '/shared/deploy.zip',
+          size: 42,
+        );
+        const downloaded = DownloadedFile(
+          name: 'photo.png',
+          target: DownloadTarget.gallery,
+        );
 
-      when(() => filePicker.pickFiles()).thenAnswer((_) async => [staged]);
-      when(
-        () => transport.publishFiles(any()),
-      ).thenAnswer((_) async => [published]);
-      when(
-        () => transport.downloadSharedFile(any()),
-      ).thenAnswer((_) async => downloaded);
+        when(() => filePicker.pickFiles()).thenAnswer((_) async => [staged]);
+        when(
+          () => filePicker.pickGalleryPhotos(),
+        ).thenAnswer((_) async => [staged]);
+        when(
+          () => transport.publishFiles(any()),
+        ).thenAnswer((_) async => [published]);
+        when(
+          () => transport.downloadSharedFile(any()),
+        ).thenAnswer((_) async => downloaded);
 
-      expect(await repository.pickHostFiles(), [staged]);
-      expect(await repository.publishFiles(const [staged]), [published]);
-      expect(await repository.downloadSharedFile('photo.png'), downloaded);
+        expect(await repository.pickHostFiles(), [staged]);
+        expect(await repository.pickHostGalleryPhotos(), [staged]);
+        expect(await repository.publishFiles(const [staged]), [published]);
+        expect(await repository.downloadSharedFile('photo.png'), downloaded);
 
-      verify(() => filePicker.pickFiles()).called(1);
-      verify(() => transport.publishFiles(const [staged])).called(1);
-      verify(() => transport.downloadSharedFile('photo.png')).called(1);
-    });
+        verify(() => filePicker.pickFiles()).called(1);
+        verify(() => filePicker.pickGalleryPhotos()).called(1);
+        verify(() => transport.publishFiles(const [staged])).called(1);
+        verify(() => transport.downloadSharedFile('photo.png')).called(1);
+      },
+    );
   });
 }

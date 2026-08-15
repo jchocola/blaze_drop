@@ -9,6 +9,7 @@ import '../../domain/entities/peer_device.dart';
 import '../../domain/entities/transfer_session.dart';
 import '../../domain/use_cases/get_local_node_name_use_case.dart';
 import '../../domain/use_cases/pick_files_use_case.dart';
+import '../../domain/use_cases/pick_gallery_photos_use_case.dart';
 import '../../domain/use_cases/respond_to_request_use_case.dart';
 import '../../domain/use_cases/send_files_use_case.dart';
 import '../../domain/use_cases/start_discovery_use_case.dart';
@@ -34,6 +35,7 @@ class P2pCubit extends Cubit<P2pState> {
     required this.watchIncomingRequestsUseCase,
     required this.watchTransferUpdatesUseCase,
     required this.pickFilesUseCase,
+    required this.pickGalleryPhotosUseCase,
     required this.sendFilesUseCase,
     required this.respondToRequestUseCase,
   }) : super(const P2pState());
@@ -44,6 +46,7 @@ class P2pCubit extends Cubit<P2pState> {
   final WatchDiscoveredPeersUseCase watchDiscoveredPeersUseCase;
   final WatchIncomingRequestsUseCase watchIncomingRequestsUseCase;
   final WatchTransferUpdatesUseCase watchTransferUpdatesUseCase;
+  final PickGalleryPhotosUseCase pickGalleryPhotosUseCase;
   final PickFilesUseCase pickFilesUseCase;
   final SendFilesUseCase sendFilesUseCase;
   final RespondToRequestUseCase respondToRequestUseCase;
@@ -68,35 +71,26 @@ class P2pCubit extends Cubit<P2pState> {
     } catch (error, stack) {
       AppLogger.error('Failed to read node identity', error, stack);
     }
-    _peersSub = watchDiscoveredPeersUseCase.execute().listen(
-      (peers) {
-        if (!isClosed) {
-          emit(state.copyWith(peers: peers));
-        }
-      },
-      onError: _onStreamError,
-    );
-    _incomingSub = watchIncomingRequestsUseCase.execute().listen(
-      (request) {
-        if (!isClosed) {
-          emit(state.copyWith(pendingRequest: request));
-        }
-      },
-      onError: _onStreamError,
-    );
-    _transferSub = watchTransferUpdatesUseCase.execute().listen(
-      (session) {
-        if (isClosed) {
-          return;
-        }
-        final sending =
-            session.direction == TransferDirection.outgoing &&
-            (session.status == TransferStatus.transferring ||
-                session.status == TransferStatus.pending);
-        emit(state.copyWith(transfer: session, isSending: sending));
-      },
-      onError: _onStreamError,
-    );
+    _peersSub = watchDiscoveredPeersUseCase.execute().listen((peers) {
+      if (!isClosed) {
+        emit(state.copyWith(peers: peers));
+      }
+    }, onError: _onStreamError);
+    _incomingSub = watchIncomingRequestsUseCase.execute().listen((request) {
+      if (!isClosed) {
+        emit(state.copyWith(pendingRequest: request));
+      }
+    }, onError: _onStreamError);
+    _transferSub = watchTransferUpdatesUseCase.execute().listen((session) {
+      if (isClosed) {
+        return;
+      }
+      final sending =
+          session.direction == TransferDirection.outgoing &&
+          (session.status == TransferStatus.transferring ||
+              session.status == TransferStatus.pending);
+      emit(state.copyWith(transfer: session, isSending: sending));
+    }, onError: _onStreamError);
     await startScan();
   }
 
@@ -179,6 +173,31 @@ class P2pCubit extends Cubit<P2pState> {
     }
   }
 
+  /// Opens the device photo gallery and stages the chosen photos alongside
+  /// any already-selected payload items.
+  Future<void> pickGalleryPhotos() async {
+    try {
+      final picked = await pickGalleryPhotosUseCase.execute();
+      if (picked.isEmpty || isClosed) {
+        return;
+      }
+      final existing = state.selectedFiles.map((f) => f.path).toSet();
+      final merged = [
+        ...state.selectedFiles,
+        ...picked.where((f) => !existing.contains(f.path)),
+      ];
+      emit(state.copyWith(selectedFiles: merged, error: null));
+      AppLogger.debug(
+        'Staged ${merged.length} file(s) from gallery for transfer',
+      );
+    } catch (error, stack) {
+      AppLogger.error('Failed to pick gallery photos', error, stack);
+      if (!isClosed) {
+        emit(state.copyWith(error: 'Failed to open gallery picker'));
+      }
+    }
+  }
+
   /// Removes [file] from the staged payload.
   void removeFile(FileItem file) {
     emit(
@@ -202,7 +221,9 @@ class P2pCubit extends Cubit<P2pState> {
       return;
     }
     emit(state.copyWith(isSending: true, transfer: null, error: null));
-    AppLogger.info('Sending ${state.selectedFiles.length} file(s) to ${peer.name}');
+    AppLogger.info(
+      'Sending ${state.selectedFiles.length} file(s) to ${peer.name}',
+    );
     try {
       await sendFilesUseCase.execute(peer, state.selectedFiles);
     } catch (error, stack) {
@@ -252,9 +273,7 @@ class P2pCubit extends Cubit<P2pState> {
     _peersSub = null;
     _incomingSub = null;
     _transferSub = null;
-    unawaited(
-      stopDiscoveryUseCase.execute().catchError((Object _) {}),
-    );
+    unawaited(stopDiscoveryUseCase.execute().catchError((Object _) {}));
     await super.close();
   }
 }

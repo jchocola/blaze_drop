@@ -46,16 +46,18 @@ class ServerRepositoryImpl implements ServerRepository {
   Stream<ServerUploadEvent> watchUploads() => _transport.watchUploads();
 
   @override
-  Future<List<ServerSharedFile>> listSharedFiles() =>
-      _transport.listFiles();
+  Future<List<ServerSharedFile>> listSharedFiles() => _transport.listFiles();
 
   @override
   Future<List<HostPublishFile>> pickHostFiles() => _filePicker.pickFiles();
 
   @override
-  Future<List<ServerSharedFile>> publishFiles(
-    List<HostPublishFile> files,
-  ) => _transport.publishFiles(files);
+  Future<List<HostPublishFile>> pickHostGalleryPhotos() =>
+      _filePicker.pickGalleryPhotos();
+
+  @override
+  Future<List<ServerSharedFile>> publishFiles(List<HostPublishFile> files) =>
+      _transport.publishFiles(files);
 
   @override
   Future<DownloadedFile?> downloadSharedFile(String fileId) =>
