@@ -1,0 +1,64 @@
+name: blaze_drop
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State management (strict: Cubit/Bloc per RULE.md)
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.7
+  # Dependency injection
+  get_it: ^8.0.3
+  # Navigation
+  go_router: ^16.2.1
+  # Permissions (Module A)
+  permission_handler: ^12.0.1
+  # Logging
+  logger: ^2.5.0
+  file_picker: ^12.0.0
+  path_provider: ^2.1.6
+  shared_preferences: ^2.5.5
+  # Module C — Server Mode (FUNCTIONALITY.md §5)
+  shelf: ^1.4.2
+  shelf_router: ^1.1.4
+  shelf_multipart: ^2.0.0
+  http_parser: ^4.0.2
+  qr_flutter: ^4.1.0
+  path: ^1.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.4
+  http: ^1.2.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/web_client/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 800
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 900
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/SpaceGrotesk-Variable.ttf
+          weight: 700

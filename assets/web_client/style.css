@@ -1,0 +1,325 @@
+/* BlazeDrop — guest web client (Cyber-Utility theme, mirrors DESIGN.md). */
+:root {
+  --bg: #0d0d0d;
+  --surface: #1a1a1a;
+  --surface-high: #252525;
+  --border: #333333;
+  --cyan: #00e5ff;
+  --cyan-dim: #00626e;
+  --orange: #fe6b00;
+  --green: #2cf100;
+  --text: #e5e2e1;
+  --text-dim: #849396;
+  --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Header -------------------------------------------------------------- */
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-style: italic;
+  color: var(--cyan);
+}
+
+.conn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.conn.ok {
+  color: var(--green);
+}
+
+.conn.lost {
+  color: #ffb4ab;
+}
+
+/* --- Panels -------------------------------------------------------------- */
+main {
+  flex: 1;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px;
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--cyan);
+  margin-bottom: 12px;
+}
+
+.panel-title .live {
+  color: var(--text-dim);
+  float: right;
+  letter-spacing: 1px;
+}
+
+.node {
+  font-family: var(--mono);
+  color: var(--text-dim);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* --- Drop zone ----------------------------------------------------------- */
+.dropzone {
+  border: 2px dashed var(--cyan-dim);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone.over {
+  border-color: var(--cyan);
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.dz-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.dz-title {
+  font-family: var(--mono);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.dz-sub {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* --- Buttons ------------------------------------------------------------- */
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  padding: 12px;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn.outline {
+  background: transparent;
+  color: var(--cyan);
+  border: 2px solid var(--cyan);
+}
+
+.btn.cta {
+  background: var(--orange);
+  color: #1a0500;
+}
+
+.selected {
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+/* --- Transfer log -------------------------------------------------------- */
+.log-row {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 0;
+}
+
+.log-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.log-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+}
+
+.pct {
+  color: var(--cyan);
+  font-weight: 700;
+}
+
+.log-sub {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  margin: 4px 0;
+}
+
+.track {
+  height: 10px;
+  background: #222222;
+  border: 1px solid var(--border);
+}
+
+.bar {
+  height: 100%;
+  width: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--cyan) 0 8px,
+    #0090a0 8px 16px
+  );
+  transition: width 0.2s ease;
+}
+
+.log-row.done .pct {
+  color: var(--green);
+}
+
+.log-row.done .bar {
+  background: var(--green);
+}
+
+.log-row.failed .pct {
+  color: #ffb4ab;
+}
+
+.log-row.failed .bar {
+  background: #93000a;
+}
+
+/* --- Download list ------------------------------------------------------- */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-ico {
+  font-size: 20px;
+}
+
+.file-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-sub {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.get-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--cyan);
+  border: 1px solid var(--cyan);
+  background: transparent;
+  padding: 6px 12px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.get-btn:hover {
+  background: rgba(0, 229, 255, 0.1);
+}
+
+.empty {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 8px 0;
+}
+
+/* --- HUD footer ---------------------------------------------------------- */
+.hud {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cursor {
+  color: var(--cyan);
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

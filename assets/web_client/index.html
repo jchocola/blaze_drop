@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BlazeDrop · Web Transfer Client</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">BLAZEDROP</div>
+    <div id="connBadge" class="conn">○ CONNECTING…</div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-title">WEB TRANSFER CLIENT</div>
+      <div class="node">DROP_ZONE_ALPHA</div>
+
+      <div id="dropZone" class="dropzone">
+        <div class="dz-icon">☁️</div>
+        <div class="dz-title">DEPLOY ASSETS HERE</div>
+        <div class="dz-sub">Drag &amp; drop files or folders directly into the zone.</div>
+      </div>
+
+      <div class="actions">
+        <button id="chooseBtn" class="btn outline">CHOOSE FILES</button>
+        <button id="uploadBtn" class="btn cta" disabled>⚡ INITIATE UPLOAD</button>
+      </div>
+      <input id="fileInput" type="file" multiple hidden />
+
+      <div id="selectedCount" class="selected">0 FILE(S) STAGED</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">TRANSFER_LOG <span class="live">⚙ LIVE</span></div>
+      <div id="transferLog" class="log"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">AVAILABLE ON SERVER <span class="live">⟲</span></div>
+      <div id="downloadList" class="files"></div>
+    </section>
+  </main>
+
+  <footer class="hud">
+    <span id="statusLine">&gt; SYSTEM STANDBY…</span><span class="cursor">|</span>
+  </footer>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
