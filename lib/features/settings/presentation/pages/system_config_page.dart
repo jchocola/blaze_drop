@@ -355,7 +355,7 @@ class _VersionSection extends StatelessWidget {
         _InfoRow(label: 'BUILD', value: version.buildNumber),
         if (version.appName != null && version.appName!.isNotEmpty)
           _InfoRow(label: 'APP', value: version.appName!),
-        _InfoRow(label: 'PACKAGE', value: version.packageName),
+       // _InfoRow(label: 'PACKAGE', value: version.packageName),
       ],
     );
   }
@@ -377,12 +377,13 @@ class _InfoRow extends StatelessWidget {
         ),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           SectionLabel(
             text: label,
             color: AppColors.onSurfaceVariant,
           ),
-          const Spacer(),
+          //const Spacer(),
           Flexible(
             child: Text(
               value,

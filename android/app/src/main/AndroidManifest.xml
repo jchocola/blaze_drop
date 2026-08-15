@@ -22,7 +22,7 @@
         android:maxSdkVersion="29"/>
 
     <application
-        android:label="blaze_drop"
+        android:label="com.jchocola.blaze_drop"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
