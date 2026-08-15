@@ -31,6 +31,7 @@ import '../../features/server/data/datasources/host_file_picker.dart';
 import '../../features/server/data/datasources/local_ip_resolver.dart';
 import '../../features/server/data/datasources/media_store.dart';
 import '../../features/server/data/datasources/shelf_web_server_transport.dart';
+import '../../features/server/data/datasources/tls_certificate_provider.dart';
 import '../../features/server/data/datasources/web_client_assets.dart';
 import '../../features/server/data/datasources/web_server_transport.dart';
 import '../../features/server/data/repositories_impl/server_repository_impl.dart';
@@ -168,6 +169,9 @@ Future<void> setupLocator() async {
   sl
     ..registerLazySingleton<LocalIpResolver>(NetworkLocalIpResolver.new)
     ..registerLazySingleton<WebClientAssets>(BundledWebClientAssets.new)
+    ..registerLazySingleton<TlsCertificateProvider>(
+      FileSystemTlsCertificateProvider.new,
+    )
     ..registerLazySingleton<HostFilePicker>(SystemHostFilePicker.new)
     ..registerLazySingleton<MediaStore>(DeviceMediaStore.new)
     ..registerLazySingleton<HistoryLocalDataSource>(
@@ -180,6 +184,7 @@ Future<void> setupLocator() async {
       () => ShelfWebServerTransport(
         ipResolver: sl<LocalIpResolver>(),
         assets: sl<WebClientAssets>(),
+        tlsProvider: sl<TlsCertificateProvider>(),
         sharedDirectoryProvider: () => StoragePaths.hubCacheDirectory,
         mediaStore: sl<MediaStore>(),
       ),

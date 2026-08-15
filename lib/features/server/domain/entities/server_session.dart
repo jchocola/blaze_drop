@@ -24,6 +24,8 @@ class ServerSession extends Equatable {
     this.port = 0,
     this.localIp = '',
     this.startedAt,
+    this.isHttps = true,
+    this.certFingerprint,
   });
 
   final ServerStatus status;
@@ -36,15 +38,39 @@ class ServerSession extends Equatable {
 
   final DateTime? startedAt;
 
-  /// Direct-connect URL advertised via the QR beacon, e.g.
-  /// `http://192.168.1.10:8080`.
-  String get url =>
-      (localIp.isEmpty || port == 0) ? '' : 'http://$localIp:$port';
+  /// Whether the hub serves HTTPS (self-signed TLS). HTTPS is non-negotiable
+  /// per FUNCTIONALITY.md §7.
+  final bool isHttps;
 
-  /// Browser-openable `http://ip:port` form shown on the "DIRECT CONNECT IP"
-  /// readout (guests connect via HTTP, not a raw TCP socket).
+  /// Lowercase hex SHA-256 fingerprint of the served certificate. Used for
+  /// the QR beacon so guests can verify they reached the right host
+  /// (FUNCTIONALITY.md §7 "the app validates the checksum").
+  final String? certFingerprint;
+
+  String get _scheme => isHttps ? 'https' : 'http';
+
+  /// Direct-connect URL advertised via the QR beacon, e.g.
+  /// `https://192.168.1.10:8080`.
+  String get url =>
+      (localIp.isEmpty || port == 0) ? '' : '$_scheme://$localIp:$port';
+
+  /// Browser-openable `https://ip:port` form shown on the "DIRECT CONNECT IP"
+  /// readout (guests connect via HTTPS, not a raw TCP socket).
   String get directConnect =>
-      (localIp.isEmpty || port == 0) ? '' : 'http://$localIp:$port';
+      (localIp.isEmpty || port == 0) ? '' : '$_scheme://$localIp:$port';
+
+  /// QR beacon payload: the HTTPS URL plus the certificate fingerprint in the
+  /// fragment so a guest can pin the identity it just connected to.
+  String get qrCodeData {
+    final base = url;
+    if (base.isEmpty) {
+      return '';
+    }
+    final fingerprint = certFingerprint;
+    return (fingerprint == null || fingerprint.isEmpty)
+        ? base
+        : '$base#sha256=$fingerprint';
+  }
 
   bool get isActive => status == ServerStatus.active;
 
@@ -53,15 +79,26 @@ class ServerSession extends Equatable {
     int? port,
     String? localIp,
     DateTime? startedAt,
+    bool? isHttps,
+    String? certFingerprint,
   }) {
     return ServerSession(
       status: status ?? this.status,
       port: port ?? this.port,
       localIp: localIp ?? this.localIp,
       startedAt: startedAt ?? this.startedAt,
+      isHttps: isHttps ?? this.isHttps,
+      certFingerprint: certFingerprint ?? this.certFingerprint,
     );
   }
 
   @override
-  List<Object?> get props => [status, port, localIp, startedAt];
+  List<Object?> get props => [
+    status,
+    port,
+    localIp,
+    startedAt,
+    isHttps,
+    certFingerprint,
+  ];
 }

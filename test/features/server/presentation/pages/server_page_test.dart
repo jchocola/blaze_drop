@@ -196,7 +196,8 @@ void main() {
     expect(find.text('SERVER ACTIVE'), findsOneWidget);
     expect(find.text('LOCAL_BROADCAST_BEACON'), findsOneWidget);
     expect(find.text('STOP SERVER'), findsOneWidget);
-    expect(find.text('http://192.168.1.10:8080'), findsOneWidget);
+    expect(find.text('SECURE // TLS'), findsOneWidget);
+    expect(find.text('https://192.168.1.10:8080'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('manifest.json'),

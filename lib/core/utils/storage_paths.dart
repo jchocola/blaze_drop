@@ -46,4 +46,16 @@ abstract final class StoragePaths {
     await dir.create(recursive: true);
     return dir.path;
   }
+
+  /// Cache directory for the generated self-signed TLS identity
+  /// (`Documents/BlazeDrop/tls`).
+  static Future<Directory> get tlsDirectory async {
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory(
+      '${docs.path}${Platform.pathSeparator}BlazeDrop'
+      '${Platform.pathSeparator}tls',
+    );
+    await dir.create(recursive: true);
+    return dir;
+  }
 }

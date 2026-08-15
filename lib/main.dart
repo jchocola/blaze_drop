@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/constants/constants.dart';
@@ -13,6 +14,13 @@ import 'features/settings/presentation/cubit/settings_cubit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Фиксируем только вертикальную ориентацию
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   await setupLocator();
   runApp(const BlazeDropApp());
 }
@@ -33,21 +41,11 @@ class BlazeDropApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider<OnboardingCubit>(
-          create: (_) => sl<OnboardingCubit>(),
-        ),
-        BlocProvider<P2pCubit>(
-          create: (_) => sl<P2pCubit>(),
-        ),
-        BlocProvider<SettingsCubit>(
-          create: (_) => sl<SettingsCubit>(),
-        ),
-        BlocProvider<ServerCubit>(
-          create: (_) => sl<ServerCubit>(),
-        ),
-        BlocProvider<HistoryCubit>(
-          create: (_) => sl<HistoryCubit>(),
-        ),
+        BlocProvider<OnboardingCubit>(create: (_) => sl<OnboardingCubit>()),
+        BlocProvider<P2pCubit>(create: (_) => sl<P2pCubit>()),
+        BlocProvider<SettingsCubit>(create: (_) => sl<SettingsCubit>()),
+        BlocProvider<ServerCubit>(create: (_) => sl<ServerCubit>()),
+        BlocProvider<HistoryCubit>(create: (_) => sl<HistoryCubit>()),
       ],
       child: MaterialApp.router(
         title: AppConstants.appName,

@@ -43,7 +43,27 @@
     downloadList: $('#downloadList'),
     status: $('#statusLine'),
     connBadge: $('#connBadge'),
+    tlsBanner: $('#tlsBanner'),
+    tlsDismiss: $('#tlsDismiss'),
   };
+
+  /* --- TLS trust banner (silence the self-signed warning) -------------- */
+  const tlsDismissKey = 'blazedrop_ca_dismissed';
+  try {
+    if (localStorage.getItem(tlsDismissKey) !== '1') {
+      els.tlsBanner.classList.remove('hidden');
+    }
+  } catch (_) {
+    /* storage unavailable — banner shows every load */
+  }
+  els.tlsDismiss.addEventListener('click', () => {
+    els.tlsBanner.classList.add('hidden');
+    try {
+      localStorage.setItem(tlsDismissKey, '1');
+    } catch (_) {
+      /* ignore */
+    }
+  });
 
   /* --- Liveness ping ----------------------------------------------------- */
   async function ping() {

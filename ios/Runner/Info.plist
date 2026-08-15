@@ -32,6 +32,11 @@
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>BlazeDrop uses your local network to discover nearby devices and transfer files securely between them.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>BlazeDrop saves photos you download into your photo library so you can view them in the gallery.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

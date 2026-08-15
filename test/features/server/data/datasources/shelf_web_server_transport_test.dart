@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:blaze_drop/features/server/data/datasources/local_ip_resolver.dart';
 import 'package:blaze_drop/features/server/data/datasources/media_store.dart';
 import 'package:blaze_drop/features/server/data/datasources/shelf_web_server_transport.dart';
+import 'package:blaze_drop/features/server/data/datasources/tls_certificate_provider.dart';
 import 'package:blaze_drop/features/server/data/datasources/web_client_assets.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
 import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
@@ -13,6 +14,7 @@ import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 class _FakeIpResolver implements LocalIpResolver {
   const _FakeIpResolver(this.ip);
@@ -73,6 +75,27 @@ void main() {
   late List<ServerUploadEvent> uploadEvents;
   late StreamSubscription<ServerUploadEvent> uploadSubscription;
 
+  // TLS identity is generated once (RSA keygen is slow) and cached in a temp
+  // dir; all tests reuse the same certificate because the fake IP is fixed.
+  late Directory tlsDir;
+  late TlsCertificateProvider tlsProvider;
+  late http.Client client; // accepts self-signed certs (test-only).
+
+  setUpAll(() async {
+    tlsDir = await Directory.systemTemp.createTemp('blazedrop_tls_test');
+    tlsProvider = FileSystemTlsCertificateProvider(
+      cacheDirectoryProvider: () async => tlsDir,
+    );
+    client = IOClient(
+      HttpClient()..badCertificateCallback = (_, _, _) => true,
+    );
+  });
+
+  tearDownAll(() async {
+    client.close();
+    await tlsDir.delete(recursive: true);
+  });
+
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('blazedrop_server_test');
     receivedDir = await Directory.systemTemp.createTemp(
@@ -85,6 +108,7 @@ void main() {
         css: 'body{}',
         js: 'console.log(1);',
       ),
+      tlsProvider: tlsProvider,
       sharedDirectoryProvider: () async => tempDir.path,
       mediaStore: _FakeMediaStore(receivedDir.path),
       clientTimeout: const Duration(seconds: 5),
@@ -104,16 +128,59 @@ void main() {
       transport.start(preferredPort: 0, sessionTimeoutMinutes: 15);
 
   Uri hubUri(ServerSession session, String path) =>
-      Uri.parse('http://127.0.0.1:${session.port}$path');
+      Uri.parse('https://127.0.0.1:${session.port}$path');
 
-  test('starts on a free port and exposes the resolved IP/URL', () async {
+  test('starts on a free port, serving HTTPS with a cert fingerprint', () async {
     final session = await startHub();
 
     expect(session.status, ServerStatus.active);
     expect(session.localIp, '192.168.1.10');
     expect(session.port, greaterThan(0));
-    expect(session.url, 'http://192.168.1.10:${session.port}');
-    expect(session.directConnect, 'http://192.168.1.10:${session.port}');
+    expect(session.isHttps, isTrue);
+    expect(session.url, 'https://192.168.1.10:${session.port}');
+    expect(session.directConnect, 'https://192.168.1.10:${session.port}');
+    expect(session.certFingerprint, isNotNull);
+    expect(session.certFingerprint, matches(RegExp(r'^[0-9a-f]{64}$')));
+    expect(
+      session.qrCodeData,
+      'https://192.168.1.10:${session.port}#sha256=${session.certFingerprint}',
+    );
+  });
+
+  test('serves the embedded web client over TLS at GET /', () async {
+    final session = await startHub();
+    final response = await client.get(hubUri(session, '/'));
+
+    expect(response.statusCode, 200);
+    expect(response.body, '<html>guest</html>');
+    expect(response.headers['content-type'], contains('text/html'));
+  });
+
+  test('serves the root CA at GET /ca.pem for guest trust', () async {
+    final session = await startHub();
+    final response = await client.get(hubUri(session, '/ca.pem'));
+
+    expect(response.statusCode, 200);
+    expect(response.body, contains('-----BEGIN CERTIFICATE-----'));
+    expect(response.body, contains('-----END CERTIFICATE-----'));
+    expect(response.headers['content-type'], contains('pem'));
+  });
+
+  test('rejects plain HTTP on the TLS port', () async {
+    final session = await startHub();
+    final plain = HttpClient();
+    try {
+      final request = await plain
+          .getUrl(Uri.parse('http://127.0.0.1:${session.port}/'))
+          .then((r) => r.close());
+      fail('plain HTTP should not reach the TLS server, got: $request');
+    } on HttpException {
+      // Expected: the TLS server refuses a plaintext client.
+    } on SocketException {
+      // Also acceptable: connection closed/reset on plaintext.
+    } finally {
+      plain.close();
+    }
   });
 
   test('starting the server clears the upload cache', () async {
@@ -126,19 +193,10 @@ void main() {
 
     expect(await stale.exists(), isFalse);
 
-    final filesResponse = await http.get(hubUri(session, '/files'));
+    final filesResponse = await client.get(hubUri(session, '/files'));
     expect(filesResponse.statusCode, 200);
     final filesJson = jsonDecode(filesResponse.body) as Map<String, dynamic>;
     expect(filesJson['files'], isEmpty);
-  });
-
-  test('serves the embedded web client at GET /', () async {
-    final session = await startHub();
-    final response = await http.get(hubUri(session, '/'));
-
-    expect(response.statusCode, 200);
-    expect(response.body, '<html>guest</html>');
-    expect(response.headers['content-type'], contains('text/html'));
   });
 
   test('ping registers the guest in the connected-client list', () async {
@@ -146,7 +204,7 @@ void main() {
     final clientSnapshots = <List<ConnectedClient>>[];
     final subscription = transport.watchClients().listen(clientSnapshots.add);
 
-    await http.get(hubUri(session, '/api/ping?client=NODE-X'));
+    await client.get(hubUri(session, '/api/ping?client=NODE-X'));
     await Future<void>.delayed(Duration.zero);
 
     final latest = clientSnapshots.last;
@@ -169,7 +227,7 @@ void main() {
         filename: 'test.txt',
       ),
     );
-    final response = await http.Response.fromStream(await request.send());
+    final response = await http.Response.fromStream(await client.send(request));
     expect(response.statusCode, 200);
 
     final saved = File('${tempDir.path}/test.txt');
@@ -186,16 +244,13 @@ void main() {
       isTrue,
     );
 
-    final filesResponse = await http.get(hubUri(session, '/files'));
+    final filesResponse = await client.get(hubUri(session, '/files'));
     expect(filesResponse.statusCode, 200);
     final filesJson = jsonDecode(filesResponse.body) as Map<String, dynamic>;
     final files = filesJson['files'] as List;
-    expect(
-      files.any((f) => (f as Map)['name'] == 'test.txt'),
-      isTrue,
-    );
+    expect(files.any((f) => (f as Map)['name'] == 'test.txt'), isTrue);
 
-    final downloadResponse = await http.get(
+    final downloadResponse = await client.get(
       hubUri(session, '/download/test.txt'),
     );
     expect(downloadResponse.statusCode, 200);
@@ -209,7 +264,7 @@ void main() {
       http.MultipartFile.fromBytes('file', utf8.encode('x'), filename: '../../evil.txt'),
     );
 
-    final response = await http.Response.fromStream(await request.send());
+    final response = await http.Response.fromStream(await client.send(request));
     expect(response.statusCode, 200);
 
     final savedFiles = tempDir.listSync().whereType<File>().toList();
@@ -219,7 +274,7 @@ void main() {
 
   test('download of a missing file returns 404', () async {
     final session = await startHub();
-    final response = await http.get(hubUri(session, '/download/nope.txt'));
+    final response = await client.get(hubUri(session, '/download/nope.txt'));
 
     expect(response.statusCode, 404);
   });
@@ -267,7 +322,7 @@ void main() {
     );
 
     // Guests can list the published asset.
-    final filesResponse = await http.get(hubUri(session, '/files'));
+    final filesResponse = await client.get(hubUri(session, '/files'));
     expect(filesResponse.statusCode, 200);
     final filesJson = jsonDecode(filesResponse.body) as Map<String, dynamic>;
     final files = filesJson['files'] as List;
