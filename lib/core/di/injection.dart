@@ -48,7 +48,11 @@ import '../../features/server/domain/use_cases/watch_server_status_use_case.dart
 import '../../features/server/domain/use_cases/watch_uploads_use_case.dart';
 import '../../features/server/presentation/cubit/server_cubit.dart';
 import '../../features/settings/data/datasources/settings_local_data_source.dart';
+import '../../features/settings/data/datasources/version_package_data_source.dart';
 import '../../features/settings/data/repositories_impl/settings_repository_impl.dart';
+import '../../features/settings/data/repositories_impl/version_repository_impl.dart';
+import '../../features/settings/domain/repositories/version_repository.dart';
+import '../../features/settings/domain/use_cases/get_version_info_use_case.dart';
 import '../../features/settings/domain/use_cases/load_config_use_case.dart';
 import '../../features/settings/domain/use_cases/reset_config_use_case.dart';
 import '../../features/settings/domain/use_cases/save_config_use_case.dart';
@@ -157,13 +161,22 @@ Future<void> setupLocator() async {
     )
     ..registerLazySingleton<SettingsRepository>(
       () => SettingsRepositoryImpl(sl<SettingsLocalDataSource>()),
+    )
+    ..registerLazySingleton<VersionPackageDataSource>(
+      VersionPackageDataSource.new,
+    )
+    ..registerLazySingleton<VersionRepository>(
+      () => VersionRepositoryImpl(sl<VersionPackageDataSource>()),
     );
 
   // Domain use cases (Module C — Settings).
   sl
     ..registerLazySingleton(() => LoadConfigUseCase(sl<SettingsRepository>()))
     ..registerLazySingleton(() => SaveConfigUseCase(sl<SettingsRepository>()))
-    ..registerLazySingleton(() => ResetConfigUseCase(sl<SettingsRepository>()));
+    ..registerLazySingleton(() => ResetConfigUseCase(sl<SettingsRepository>()))
+    ..registerLazySingleton(
+      () => GetVersionInfoUseCase(sl<VersionRepository>()),
+    );
 
   // Module C — Server Mode (Host-Web, FUNCTIONALITY.md §5).
   sl
@@ -255,6 +268,7 @@ Future<void> setupLocator() async {
       loadConfigUseCase: sl<LoadConfigUseCase>(),
       saveConfigUseCase: sl<SaveConfigUseCase>(),
       resetConfigUseCase: sl<ResetConfigUseCase>(),
+      getVersionInfoUseCase: sl<GetVersionInfoUseCase>(),
     ),
   );
   sl.registerFactory(

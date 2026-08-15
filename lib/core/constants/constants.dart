@@ -109,6 +109,27 @@ abstract final class AppConstants {
 
   /// Scheme prefix of the advertised hub URL.
   static const String serverSchemeHttps = 'https';
+
+  // --- App version (compile-time fallback) --------------------------------
+
+  /// Fallback app version used when the `package_info_plus` platform channel
+  /// is unavailable (stale build, widget tests, unsupported hosts).
+  /// Keep in sync with `pubspec.yaml` `version:`.
+  static const String appVersionFallback = '0.1.0';
+
+  /// Fallback build number shown when the platform channel is unavailable.
+  static const String appBuildNumberFallback = '0';
+
+  /// Fallback application/package id (mirrors the Android `applicationId`).
+  static const String appPackageNameFallback = 'com.example.blaze_drop';
+
+  // --- Module D: Legal links (external, open via `url_launcher`) ----------
+
+  /// External Privacy Policy URL (placeholder — set before release).
+  static const String privacyPolicyUrl = '';
+
+  /// External Terms of Service URL (placeholder — set before release).
+  static const String termsOfServiceUrl = '';
 }
 
 /// Keys used for local persistence.

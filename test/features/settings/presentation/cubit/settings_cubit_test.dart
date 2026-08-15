@@ -1,4 +1,6 @@
 import 'package:blaze_drop/core/config/app_config.dart';
+import 'package:blaze_drop/features/settings/domain/entities/app_version.dart';
+import 'package:blaze_drop/features/settings/domain/use_cases/get_version_info_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/load_config_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/reset_config_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/save_config_use_case.dart';
@@ -14,6 +16,14 @@ class _MockSaveConfig extends Mock implements SaveConfigUseCase {}
 
 class _MockResetConfig extends Mock implements ResetConfigUseCase {}
 
+class _MockGetVersionInfo extends Mock implements GetVersionInfoUseCase {}
+
+const _testVersion = AppVersion(
+  version: '0.1.0',
+  buildNumber: '7',
+  packageName: 'com.example.blaze_drop',
+);
+
 void main() {
   setUpAll(() {
     registerFallbackValue(AppConfig.defaults);
@@ -23,11 +33,14 @@ void main() {
     late _MockLoadConfig load;
     late _MockSaveConfig save;
     late _MockResetConfig reset;
+    late _MockGetVersionInfo version;
 
     setUp(() {
       load = _MockLoadConfig();
       save = _MockSaveConfig();
       reset = _MockResetConfig();
+      version = _MockGetVersionInfo();
+      when(() => version.execute()).thenAnswer((_) async => _testVersion);
     });
 
     SettingsCubit buildCubit() {
@@ -35,24 +48,45 @@ void main() {
         loadConfigUseCase: load,
         saveConfigUseCase: save,
         resetConfigUseCase: reset,
+        getVersionInfoUseCase: version,
       );
     }
 
     test('initial state uses defaults and is loading', () {
       final cubit = buildCubit();
       expect(cubit.state.config, AppConfig.defaults);
+      expect(cubit.state.version, AppVersion.unknown);
       expect(cubit.state.isLoading, isTrue);
       expect(cubit.state.dirty, isFalse);
     });
 
     blocTest<SettingsCubit, SettingsState>(
-      'load populates the persisted config',
+      'load populates the persisted config and version',
       build: buildCubit,
       act: (cubit) => cubit.load(),
       setUp: () {
         when(
           () => load.execute(),
         ).thenAnswer((_) async => const AppConfig(autoAcceptIncoming: true));
+      },
+      expect: () => [
+        const SettingsState(
+          config: AppConfig(autoAcceptIncoming: true),
+          version: _testVersion,
+          isLoading: false,
+        ),
+      ],
+    );
+
+    blocTest<SettingsCubit, SettingsState>(
+      'load falls back to unknown version when resolution fails',
+      build: buildCubit,
+      act: (cubit) => cubit.load(),
+      setUp: () {
+        when(
+          () => load.execute(),
+        ).thenAnswer((_) async => const AppConfig(autoAcceptIncoming: true));
+        when(() => version.execute()).thenThrow(Exception('no package info'));
       },
       expect: () => [
         const SettingsState(

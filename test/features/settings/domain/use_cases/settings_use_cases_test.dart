@@ -1,5 +1,8 @@
 import 'package:blaze_drop/core/config/app_config.dart';
 import 'package:blaze_drop/core/config/settings_repository.dart';
+import 'package:blaze_drop/features/settings/domain/entities/app_version.dart';
+import 'package:blaze_drop/features/settings/domain/repositories/version_repository.dart';
+import 'package:blaze_drop/features/settings/domain/use_cases/get_version_info_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/load_config_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/reset_config_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/save_config_use_case.dart';
@@ -7,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockSettingsRepository extends Mock implements SettingsRepository {}
+
+class _MockVersionRepository extends Mock implements VersionRepository {}
 
 void main() {
   group('Settings use cases', () {
@@ -23,6 +28,22 @@ void main() {
       final result = await LoadConfigUseCase(repository).execute();
 
       expect(result, config);
+    });
+
+    test('GetVersionInfoUseCase returns the repository version', () async {
+      const version = AppVersion(
+        version: '0.1.0',
+        buildNumber: '7',
+        packageName: 'com.example.blaze_drop',
+      );
+      final versionRepository = _MockVersionRepository();
+      when(
+        () => versionRepository.getVersionInfo(),
+      ).thenAnswer((_) async => version);
+
+      final result = await GetVersionInfoUseCase(versionRepository).execute();
+
+      expect(result, version);
     });
 
     test('SaveConfigUseCase persists the given config', () async {

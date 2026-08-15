@@ -5,9 +5,11 @@ import '../../../../core/constants/constants.dart';
 import '../../../../core/theme/theme.dart';
 import '../../../../core/widgets/blaze_button.dart';
 import '../../../../core/widgets/section_label.dart';
+import '../../domain/entities/app_version.dart';
 import '../cubit/settings_cubit.dart';
 import '../cubit/settings_state.dart';
 import '../widgets/config_toggle_tile.dart';
+import '../widgets/legal_link_tile.dart';
 
 /// "SYSTEM CONFIG" screen (FUNCTIONALITY.md mock): manages connection
 /// protocols, the security matrix and interface preferences.
@@ -60,6 +62,10 @@ class _SystemConfigPageState extends State<SystemConfigPage> {
                       _SecuritySection(state: state),
                       const SizedBox(height: 16),
                       _InterfaceSection(state: state),
+                      const SizedBox(height: 16),
+                      const _LegalSection(),
+                      const SizedBox(height: 16),
+                      _VersionSection(version: state.version),
                     ],
                   ),
                 ),
@@ -302,6 +308,93 @@ class _InterfaceSection extends StatelessWidget {
           onChanged: (v) => cubit.update(showHudLogs: v),
         ),
       ],
+    );
+  }
+}
+
+/// External legal links (Privacy Policy / Terms of Service) opened in the
+/// system browser via `url_launcher` (URLs from [AppConstants]).
+class _LegalSection extends StatelessWidget {
+  const _LegalSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return _ConfigSection(
+      title: 'LEGAL & COMPLIANCE',
+      children: [
+        LegalLinkTile(
+          icon: Icons.privacy_tip_outlined,
+          title: 'Privacy Policy',
+          description: 'How your data is collected and handled.',
+          url: AppConstants.privacyPolicyUrl,
+        ),
+        LegalLinkTile(
+          icon: Icons.description_outlined,
+          title: 'Terms of Service',
+          description: 'Agreement governing app usage.',
+          url: AppConstants.termsOfServiceUrl,
+        ),
+      ],
+    );
+  }
+}
+
+/// Read-only build metadata (version, build number, package id) sourced from
+/// `package_info_plus` via [SettingsCubit].
+class _VersionSection extends StatelessWidget {
+  const _VersionSection({required this.version});
+
+  final AppVersion version;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ConfigSection(
+      title: 'BUILD INFO',
+      children: [
+        _InfoRow(label: 'VERSION', value: version.version),
+        _InfoRow(label: 'BUILD', value: version.buildNumber),
+        if (version.appName != null && version.appName!.isNotEmpty)
+          _InfoRow(label: 'APP', value: version.appName!),
+        _InfoRow(label: 'PACKAGE', value: version.packageName),
+      ],
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.outlineVariant, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          SectionLabel(
+            text: label,
+            color: AppColors.onSurfaceVariant,
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: AppTextStyles.codeSm.copyWith(
+                color: AppColors.primaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

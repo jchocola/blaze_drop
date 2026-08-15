@@ -1,5 +1,7 @@
 import 'package:blaze_drop/core/config/app_config.dart';
 import 'package:blaze_drop/core/theme/theme.dart';
+import 'package:blaze_drop/features/settings/domain/entities/app_version.dart';
+import 'package:blaze_drop/features/settings/domain/use_cases/get_version_info_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/load_config_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/reset_config_use_case.dart';
 import 'package:blaze_drop/features/settings/domain/use_cases/save_config_use_case.dart';
@@ -16,6 +18,14 @@ class _MockSaveConfig extends Mock implements SaveConfigUseCase {}
 
 class _MockResetConfig extends Mock implements ResetConfigUseCase {}
 
+class _MockGetVersionInfo extends Mock implements GetVersionInfoUseCase {}
+
+const _testVersion = AppVersion(
+  version: '0.1.0',
+  buildNumber: '7',
+  packageName: 'com.example.blaze_drop',
+);
+
 void main() {
   setUpAll(() {
     registerFallbackValue(AppConfig.defaults);
@@ -25,14 +35,17 @@ void main() {
     late _MockLoadConfig load;
     late _MockSaveConfig save;
     late _MockResetConfig reset;
+    late _MockGetVersionInfo version;
 
     setUp(() {
       load = _MockLoadConfig();
       save = _MockSaveConfig();
       reset = _MockResetConfig();
+      version = _MockGetVersionInfo();
       when(() => load.execute()).thenAnswer((_) async => AppConfig.defaults);
       when(() => save.execute(any())).thenAnswer((_) async {});
       when(() => reset.execute()).thenAnswer((_) async {});
+      when(() => version.execute()).thenAnswer((_) async => _testVersion);
     });
 
     Widget buildPage() {
@@ -41,6 +54,7 @@ void main() {
           loadConfigUseCase: load,
           saveConfigUseCase: save,
           resetConfigUseCase: reset,
+          getVersionInfoUseCase: version,
         ),
         child: MaterialApp(theme: AppTheme.dark, home: const SystemConfigPage()),
       );
@@ -104,6 +118,57 @@ void main() {
 
       // The SAVE button stays enabled and the header shows UNSAVED.
       expect(find.text('UNSAVED'), findsOneWidget);
+    });
+
+    testWidgets('renders the legal links section', (tester) async {
+      await tester.pumpWidget(buildPage());
+      await tester.pump();
+      await tester.pump();
+
+      // The LEGAL & COMPLIANCE section sits below the fold — scroll to it.
+      await tester.scrollUntilVisible(
+        find.text('Privacy Policy'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('LEGAL & COMPLIANCE'), findsOneWidget);
+      expect(find.text('Privacy Policy'), findsOneWidget);
+      expect(find.text('Terms of Service'), findsOneWidget);
+    });
+
+    testWidgets('tapping a legal link without URL shows pending snackbar',
+        (tester) async {
+      await tester.pumpWidget(buildPage());
+      await tester.pump();
+      await tester.pump();
+
+      await tester.scrollUntilVisible(
+        find.text('Privacy Policy'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Privacy Policy'));
+      await tester.pump();
+
+      expect(find.text('LINK NOT CONFIGURED // URL PENDING'), findsOneWidget);
+    });
+
+    testWidgets('renders the build info section with version metadata',
+        (tester) async {
+      await tester.pumpWidget(buildPage());
+      await tester.pump();
+      await tester.pump();
+
+      // The BUILD INFO section sits at the bottom — scroll to it.
+      await tester.scrollUntilVisible(
+        find.text('BUILD INFO'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('BUILD INFO'), findsOneWidget);
+      expect(find.text('0.1.0'), findsOneWidget);
+      expect(find.text('7'), findsOneWidget);
+      expect(find.text('com.example.blaze_drop'), findsOneWidget);
     });
   });
 }

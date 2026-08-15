@@ -2,6 +2,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/utils/logger.dart';
+import '../../domain/entities/app_version.dart';
+import '../../domain/use_cases/get_version_info_use_case.dart';
 import '../../domain/use_cases/load_config_use_case.dart';
 import '../../domain/use_cases/reset_config_use_case.dart';
 import '../../domain/use_cases/save_config_use_case.dart';
@@ -17,18 +19,28 @@ class SettingsCubit extends Cubit<SettingsState> {
     required this.loadConfigUseCase,
     required this.saveConfigUseCase,
     required this.resetConfigUseCase,
+    required this.getVersionInfoUseCase,
   }) : super(const SettingsState());
 
   final LoadConfigUseCase loadConfigUseCase;
   final SaveConfigUseCase saveConfigUseCase;
   final ResetConfigUseCase resetConfigUseCase;
+  final GetVersionInfoUseCase getVersionInfoUseCase;
 
-  /// Loads the persisted configuration into the editable state.
+  /// Loads the persisted configuration and app version metadata into the
+  /// editable state.
   Future<void> load() async {
     try {
       final config = await loadConfigUseCase.execute();
+      var version = AppVersion.unknown;
+      try {
+        version = await getVersionInfoUseCase.execute();
+      } catch (error) {
+        // Version resolution is non-critical — keep the UI usable.
+        AppLogger.warning('Failed to load version info: $error');
+      }
       if (!isClosed) {
-        emit(state.copyWith(config: config, isLoading: false));
+        emit(state.copyWith(config: config, version: version, isLoading: false));
       }
     } catch (error, stack) {
       AppLogger.error('Failed to load system config', error, stack);

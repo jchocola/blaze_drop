@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../domain/entities/app_version.dart';
 
 /// UI state for the "SYSTEM CONFIG" screen (FUNCTIONALITY.md mock).
 class SettingsState extends Equatable {
   const SettingsState({
     this.config = AppConfig.defaults,
+    this.version = AppVersion.unknown,
     this.isLoading = true,
     this.isSaving = false,
     this.dirty = false,
@@ -15,6 +17,9 @@ class SettingsState extends Equatable {
 
   /// The working copy being edited (may differ from the persisted one).
   final AppConfig config;
+
+  /// Current app version/build metadata (from `package_info_plus`).
+  final AppVersion version;
 
   final bool isLoading;
 
@@ -30,6 +35,7 @@ class SettingsState extends Equatable {
 
   SettingsState copyWith({
     AppConfig? config,
+    AppVersion? version,
     bool? isLoading,
     bool? isSaving,
     bool? dirty,
@@ -38,6 +44,7 @@ class SettingsState extends Equatable {
   }) {
     return SettingsState(
       config: config ?? this.config,
+      version: version ?? this.version,
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
       dirty: dirty ?? this.dirty,
@@ -51,6 +58,7 @@ class SettingsState extends Equatable {
   @override
   List<Object?> get props => [
     config,
+    version,
     isLoading,
     isSaving,
     dirty,
