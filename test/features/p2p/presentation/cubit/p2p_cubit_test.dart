@@ -4,11 +4,8 @@ import 'package:blaze_drop/features/p2p/domain/entities/file_item.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/incoming_connection_request.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/peer_device.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/transfer_session.dart';
-import 'package:blaze_drop/features/p2p/domain/use_cases/ensure_nearby_permission_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/get_local_node_name_use_case.dart';
-import 'package:blaze_drop/features/p2p/domain/use_cases/open_nearby_settings_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/pick_files_use_case.dart';
-import 'package:blaze_drop/features/p2p/domain/use_cases/pick_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/respond_to_request_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/send_files_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/start_discovery_use_case.dart';
@@ -35,16 +32,9 @@ class _MockWatchTransfers extends Mock implements WatchTransferUpdatesUseCase {}
 
 class _MockPickFiles extends Mock implements PickFilesUseCase {}
 
-class _MockPickGalleryPhotos extends Mock implements PickGalleryPhotosUseCase {}
-
 class _MockSendFiles extends Mock implements SendFilesUseCase {}
 
 class _MockRespondToRequest extends Mock implements RespondToRequestUseCase {}
-
-class _MockEnsureNearbyPermission extends Mock
-    implements EnsureNearbyPermissionUseCase {}
-
-class _MockOpenNearbySettings extends Mock implements OpenNearbySettingsUseCase {}
 
 const _peer = PeerDevice(
   id: 'node-1',
@@ -57,12 +47,6 @@ const _peer = PeerDevice(
 
 const _fileA = FileItem(name: 'a.zip', path: '/a.zip', size: 10);
 const _fileB = FileItem(name: 'b.zip', path: '/b.zip', size: 20);
-const _photo = FileItem(
-  name: 'photo_001.jpg',
-  path: '/tmp/photo_001.jpg',
-  size: 2048,
-  mimeType: 'image/jpeg',
-);
 
 void main() {
   late _MockGetLocalNodeName getLocalNodeName;
@@ -72,11 +56,8 @@ void main() {
   late _MockWatchIncoming watchIncoming;
   late _MockWatchTransfers watchTransfers;
   late _MockPickFiles pickFiles;
-  late _MockPickGalleryPhotos pickGalleryPhotos;
   late _MockSendFiles sendFiles;
   late _MockRespondToRequest respondToRequest;
-  late _MockEnsureNearbyPermission ensureNearbyPermission;
-  late _MockOpenNearbySettings openNearbySettings;
   late StreamController<List<PeerDevice>> peersController;
   late StreamController<IncomingConnectionRequest> incomingController;
   late StreamController<TransferSession> transfersController;
@@ -101,23 +82,19 @@ void main() {
     watchIncoming = _MockWatchIncoming();
     watchTransfers = _MockWatchTransfers();
     pickFiles = _MockPickFiles();
-    pickGalleryPhotos = _MockPickGalleryPhotos();
     sendFiles = _MockSendFiles();
     respondToRequest = _MockRespondToRequest();
-    ensureNearbyPermission = _MockEnsureNearbyPermission();
-    openNearbySettings = _MockOpenNearbySettings();
 
     peersController = StreamController<List<PeerDevice>>.broadcast();
-    incomingController =
-        StreamController<IncomingConnectionRequest>.broadcast();
+    incomingController = StreamController<IncomingConnectionRequest>.broadcast();
     transfersController = StreamController<TransferSession>.broadcast();
 
     when(() => getLocalNodeName.execute()).thenAnswer((_) async => 'NODE-TEST');
     when(() => startDiscovery.execute()).thenAnswer((_) async {});
     when(() => stopDiscovery.execute()).thenAnswer((_) async {});
-    when(() => ensureNearbyPermission.execute()).thenAnswer((_) async => true);
-    when(() => openNearbySettings.execute()).thenAnswer((_) async {});
-    when(() => watchPeers.execute()).thenAnswer((_) => peersController.stream);
+    when(
+      () => watchPeers.execute(),
+    ).thenAnswer((_) => peersController.stream);
     when(
       () => watchIncoming.execute(),
     ).thenAnswer((_) => incomingController.stream);
@@ -141,11 +118,8 @@ void main() {
       watchIncomingRequestsUseCase: watchIncoming,
       watchTransferUpdatesUseCase: watchTransfers,
       pickFilesUseCase: pickFiles,
-      pickGalleryPhotosUseCase: pickGalleryPhotos,
       sendFilesUseCase: sendFiles,
       respondToRequestUseCase: respondToRequest,
-      ensureNearbyPermissionUseCase: ensureNearbyPermission,
-      openNearbySettingsUseCase: openNearbySettings,
     );
   }
 
@@ -162,16 +136,13 @@ void main() {
       await cubit.close();
     });
 
-    test(
-      'is idempotent — second initialize does not restart discovery',
-      () async {
-        final cubit = buildCubit();
-        await cubit.initialize();
-        await cubit.initialize();
-        verify(() => startDiscovery.execute()).called(1);
-        await cubit.close();
-      },
-    );
+    test('is idempotent — second initialize does not restart discovery', () async {
+      final cubit = buildCubit();
+      await cubit.initialize();
+      await cubit.initialize();
+      verify(() => startDiscovery.execute()).called(1);
+      await cubit.close();
+    });
   });
 
   group('P2pCubit discovery stream', () {
@@ -188,50 +159,6 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(cubit.state.peers, isEmpty);
 
-      await cubit.close();
-    });
-  });
-
-  group('P2pCubit nearby permission gate', () {
-    test('blocks discovery when nearby access is denied', () async {
-      final cubit = buildCubit();
-      when(
-        () => ensureNearbyPermission.execute(),
-      ).thenAnswer((_) async => false);
-
-      await cubit.startScan();
-
-      expect(cubit.state.nearbyPermissionDenied, isTrue);
-      expect(cubit.state.scanStatus, P2pScanStatus.idle);
-      verifyNever(() => startDiscovery.execute());
-
-      await cubit.close();
-    });
-
-    test('recovers and scans once access is granted on rescan', () async {
-      final cubit = buildCubit();
-      when(
-        () => ensureNearbyPermission.execute(),
-      ).thenAnswer((_) async => false);
-      await cubit.startScan();
-      expect(cubit.state.nearbyPermissionDenied, isTrue);
-
-      when(
-        () => ensureNearbyPermission.execute(),
-      ).thenAnswer((_) async => true);
-      await cubit.startScan();
-
-      expect(cubit.state.nearbyPermissionDenied, isFalse);
-      expect(cubit.state.scanStatus, P2pScanStatus.active);
-      verify(() => startDiscovery.execute()).called(1);
-
-      await cubit.close();
-    });
-
-    test('openNearbySettings delegates to the use case', () async {
-      final cubit = buildCubit();
-      await cubit.openNearbySettings();
-      verify(() => openNearbySettings.execute()).called(1);
       await cubit.close();
     });
   });
@@ -296,50 +223,6 @@ void main() {
 
       await cubit.close();
     });
-
-    test('pickGalleryPhotos stages photos into the payload', () async {
-      final cubit = buildCubit();
-      await cubit.initialize();
-
-      when(
-        () => pickGalleryPhotos.execute(),
-      ).thenAnswer((_) async => const [_photo]);
-      await cubit.pickGalleryPhotos();
-
-      expect(cubit.state.selectedFiles, const [_photo]);
-
-      await cubit.close();
-    });
-
-    test('pickGalleryPhotos merges with files without duplicates', () async {
-      final cubit = buildCubit();
-      await cubit.initialize();
-
-      when(() => pickFiles.execute()).thenAnswer((_) async => const [_fileA]);
-      await cubit.pickFiles();
-      when(
-        () => pickGalleryPhotos.execute(),
-      ).thenAnswer((_) async => const [_photo]);
-      await cubit.pickGalleryPhotos();
-
-      expect(cubit.state.selectedFiles, const [_fileA, _photo]);
-
-      await cubit.close();
-    });
-
-    test('pickGalleryPhotos surfaces a picker error', () async {
-      final cubit = buildCubit();
-      await cubit.initialize();
-
-      when(
-        () => pickGalleryPhotos.execute(),
-      ).thenThrow(Exception('gallery denied'));
-      await cubit.pickGalleryPhotos();
-
-      expect(cubit.state.error, isNotNull);
-
-      await cubit.close();
-    });
   });
 
   group('P2pCubit send flow', () {
@@ -360,7 +243,9 @@ void main() {
         bytesTotal: 10,
         bytesTransferred: 10,
       );
-      when(() => sendFiles.execute(any(), any())).thenAnswer((_) async {
+      when(
+        () => sendFiles.execute(any(), any()),
+      ).thenAnswer((_) async {
         transfersController.add(completed);
         return completed;
       });
@@ -422,9 +307,7 @@ void main() {
         IncomingConnectionRequest(requestId: 'req-2', sender: _peer),
       );
       await Future<void>.delayed(Duration.zero);
-      when(
-        () => respondToRequest.execute(accept: true),
-      ).thenAnswer((_) async {});
+      when(() => respondToRequest.execute(accept: true)).thenAnswer((_) async {});
 
       await cubit.acceptRequest();
 
@@ -442,9 +325,7 @@ void main() {
         IncomingConnectionRequest(requestId: 'req-3', sender: _peer),
       );
       await Future<void>.delayed(Duration.zero);
-      when(
-        () => respondToRequest.execute(accept: false),
-      ).thenAnswer((_) async {});
+      when(() => respondToRequest.execute(accept: false)).thenAnswer((_) async {});
 
       await cubit.declineRequest();
 

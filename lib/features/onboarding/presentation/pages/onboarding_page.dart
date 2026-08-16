@@ -46,15 +46,9 @@ class _OnboardingPageState extends State<OnboardingPage>
   Widget build(BuildContext context) {
     return BlocListener<OnboardingCubit, OnboardingState>(
       listener: (context, state) {
-        if (!state.isInitialized || state.isRequesting) {
-          return;
-        }
-        if (state.shouldEnterHome) {
-          // Persist completion so onboarding is not shown on the next launch
-          // (fire-and-forget; the listener already navigates away).
-          if (!state.completed) {
-            context.read<OnboardingCubit>().finishOnboarding();
-          }
+        if (state.isInitialized &&
+            !state.isRequesting &&
+            state.allMandatoryGranted) {
           context.go(AppConstants.homePath);
         }
       },
@@ -220,16 +214,6 @@ class _ActionBar extends StatelessWidget {
               isLoading: state.isRequesting,
               enabled: !state.allMandatoryGranted,
               onPressed: state.isRequesting ? null : cubit.requestPermissions,
-            ),
-          ],
-          if (!state.allMandatoryGranted) ...[
-            const SizedBox(height: 10),
-            BlazeButton(
-              label: 'CONTINUE ANYWAY',
-              variant: BlazeButtonVariant.ghost,
-              icon: Icons.arrow_forward_outlined,
-              enabled: !state.isRequesting,
-              onPressed: state.isRequesting ? null : cubit.finishOnboarding,
             ),
           ],
         ],

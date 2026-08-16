@@ -5,11 +5,8 @@ import 'package:blaze_drop/features/p2p/domain/entities/file_item.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/incoming_connection_request.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/peer_device.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/transfer_session.dart';
-import 'package:blaze_drop/features/p2p/domain/use_cases/ensure_nearby_permission_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/get_local_node_name_use_case.dart';
-import 'package:blaze_drop/features/p2p/domain/use_cases/open_nearby_settings_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/pick_files_use_case.dart';
-import 'package:blaze_drop/features/p2p/domain/use_cases/pick_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/respond_to_request_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/send_files_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/start_discovery_use_case.dart';
@@ -39,16 +36,9 @@ class _MockWatchTransfers extends Mock implements WatchTransferUpdatesUseCase {}
 
 class _MockPickFiles extends Mock implements PickFilesUseCase {}
 
-class _MockPickGalleryPhotos extends Mock implements PickGalleryPhotosUseCase {}
-
 class _MockSendFiles extends Mock implements SendFilesUseCase {}
 
 class _MockRespondToRequest extends Mock implements RespondToRequestUseCase {}
-
-class _MockEnsureNearbyPermission extends Mock
-    implements EnsureNearbyPermissionUseCase {}
-
-class _MockOpenNearbySettings extends Mock implements OpenNearbySettingsUseCase {}
 
 const _peer = PeerDevice(
   id: 'node-1',
@@ -63,13 +53,6 @@ const _file = FileItem(
   name: 'system_override.zip',
   path: '/tmp/system_override.zip',
   size: 420 * 1024 * 1024,
-);
-
-const _photo = FileItem(
-  name: 'photo_001.jpg',
-  path: '/tmp/photo_001.jpg',
-  size: 2048,
-  mimeType: 'image/jpeg',
 );
 
 void main() {
@@ -91,8 +74,7 @@ void main() {
 
   setUp(() {
     peersController = StreamController<List<PeerDevice>>.broadcast();
-    incomingController =
-        StreamController<IncomingConnectionRequest>.broadcast();
+    incomingController = StreamController<IncomingConnectionRequest>.broadcast();
     transfersController = StreamController<TransferSession>.broadcast();
   });
 
@@ -102,7 +84,7 @@ void main() {
     await transfersController.close();
   });
 
-  P2pCubit buildCubit({bool nearbyGranted = true}) {
+  P2pCubit buildCubit() {
     final getLocalNodeName = _MockGetLocalNodeName();
     final startDiscovery = _MockStartDiscovery();
     final stopDiscovery = _MockStopDiscovery();
@@ -110,26 +92,15 @@ void main() {
     final watchIncoming = _MockWatchIncoming();
     final watchTransfers = _MockWatchTransfers();
     final pickFiles = _MockPickFiles();
-    final pickGalleryPhotos = _MockPickGalleryPhotos();
     final sendFiles = _MockSendFiles();
     final respondToRequest = _MockRespondToRequest();
-    final ensureNearbyPermission = _MockEnsureNearbyPermission();
-    final openNearbySettings = _MockOpenNearbySettings();
 
     when(() => getLocalNodeName.execute()).thenAnswer((_) async => 'NODE-TEST');
     when(() => startDiscovery.execute()).thenAnswer((_) async {});
     when(() => stopDiscovery.execute()).thenAnswer((_) async {});
     when(
-      () => ensureNearbyPermission.execute(),
-    ).thenAnswer((_) async => nearbyGranted);
-    when(() => openNearbySettings.execute()).thenAnswer((_) async {});
-    when(
-      () => respondToRequest.execute(accept: true),
-    ).thenAnswer((_) async {});
-    when(
-      () => respondToRequest.execute(accept: false),
-    ).thenAnswer((_) async {});
-    when(() => watchPeers.execute()).thenAnswer((_) => peersController.stream);
+      () => watchPeers.execute(),
+    ).thenAnswer((_) => peersController.stream);
     when(
       () => watchIncoming.execute(),
     ).thenAnswer((_) => incomingController.stream);
@@ -138,9 +109,8 @@ void main() {
     ).thenAnswer((_) => transfersController.stream);
     when(() => pickFiles.execute()).thenAnswer((_) async => const [_file]);
     when(
-      () => pickGalleryPhotos.execute(),
-    ).thenAnswer((_) async => const [_photo]);
-    when(() => sendFiles.execute(any(), any())).thenAnswer((_) async {
+      () => sendFiles.execute(any(), any()),
+    ).thenAnswer((_) async {
       transfersController.add(
         const TransferSession(
           sessionId: 's-1',
@@ -173,11 +143,8 @@ void main() {
       watchIncomingRequestsUseCase: watchIncoming,
       watchTransferUpdatesUseCase: watchTransfers,
       pickFilesUseCase: pickFiles,
-      pickGalleryPhotosUseCase: pickGalleryPhotos,
       sendFilesUseCase: sendFiles,
       respondToRequestUseCase: respondToRequest,
-      ensureNearbyPermissionUseCase: ensureNearbyPermission,
-      openNearbySettingsUseCase: openNearbySettings,
     );
   }
 
@@ -189,7 +156,10 @@ void main() {
     );
   }
 
-  Future<void> pumpDiscovery(WidgetTester tester, P2pCubit cubit) async {
+  Future<void> pumpDiscovery(
+    WidgetTester tester,
+    P2pCubit cubit,
+  ) async {
     await tester.pumpWidget(wrap(cubit, const P2pDiscoveryPage()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 60));
@@ -214,20 +184,6 @@ void main() {
     expect(find.text('74%'), findsOneWidget);
 
     // Tear down the page (stops the radar ticker) before closing the cubit.
-    await tester.pumpWidget(const SizedBox.shrink());
-    await cubit.close();
-  });
-
-  testWidgets('discovery page prompts for nearby access when denied', (
-    tester,
-  ) async {
-    final cubit = buildCubit(nearbyGranted: false);
-    await pumpDiscovery(tester, cubit);
-
-    expect(find.text('NEARBY ACCESS REQUIRED'), findsOneWidget);
-    expect(find.text('GRANT NEARBY ACCESS'), findsOneWidget);
-    expect(find.text('OPEN SETTINGS'), findsOneWidget);
-
     await tester.pumpWidget(const SizedBox.shrink());
     await cubit.close();
   });
@@ -282,27 +238,6 @@ void main() {
     expect(find.text('system_override.zip'), findsOneWidget);
     expect(find.text('420 MB'), findsWidgets);
     expect(find.text('BLAZE SEND'), findsOneWidget);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await cubit.close();
-  });
-
-  testWidgets('transfer page gallery button stages photos', (tester) async {
-    final cubit = buildCubit();
-    await cubit.initialize();
-    cubit.selectTarget(_peer);
-
-    await tester.pumpWidget(wrap(cubit, const P2pTransferPage()));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 60));
-
-    // Header has a gallery icon action that stages photos.
-    expect(find.byIcon(Icons.photo_library_outlined), findsWidgets);
-    await tester.tap(find.byIcon(Icons.photo_library_outlined).first);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 60));
-
-    expect(find.text('photo_001.jpg'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await cubit.close();

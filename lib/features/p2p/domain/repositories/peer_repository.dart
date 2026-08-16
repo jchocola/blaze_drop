@@ -36,8 +36,8 @@ abstract interface class PeerRepository {
   /// Opens the system file picker (multi-select).
   Future<List<FileItem>> pickFiles();
 
-  /// Opens the device photo gallery (multi-select) and returns the chosen
-  /// photos staged for transfer.
+  /// Opens the device photo gallery (multi-select) and returns photos staged
+  /// for transfer.
   Future<List<FileItem>> pickGalleryPhotos();
 
   /// Sends [files] to [peer] using the established socket. Reports progress

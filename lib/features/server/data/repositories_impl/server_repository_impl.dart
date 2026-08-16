@@ -53,6 +53,10 @@ class ServerRepositoryImpl implements ServerRepository {
   Future<List<HostPublishFile>> pickHostFiles() => _filePicker.pickFiles();
 
   @override
+  Future<List<HostPublishFile>> pickHostGalleryPhotos() =>
+      _filePicker.pickGalleryPhotos();
+
+  @override
   Future<List<ServerSharedFile>> publishFiles(
     List<HostPublishFile> files,
   ) => _transport.publishFiles(files);

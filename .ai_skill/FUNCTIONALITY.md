@@ -24,6 +24,8 @@ BlazeDrop is a utility application for transferring files between devices in the
   - Client (Server Mode): Uses `dio` with `dio_http2_adapter` for chunked file transfers.
 - **Encryption:** Dynamically generated self-signed SSL certificates (using `certificates` package) to enable HTTPS locally, preventing MITM attacks.
 
+> ⛔ Статус (2026-08-16): HTTPS ОТКЛЮЧЁН. Server Mode работает только по plain HTTP (`http://ip:port`). Раздел 7 «HTTPS Only» ниже — будущая спецификация, в текущей реализации не применяется.
+
 ---
 
 ## 3. MODULE A: ONBOARDING & PERMISSIONS
@@ -142,6 +144,8 @@ class FileItem {
 }
 
 7. SECURITY & ENCRYPTION (NON-NEGOTIABLE)
+
+> ⛔ Статус (2026-08-16): требование «HTTPS Only» временно снято — hub работает по plain HTTP. Payload-encryption P2P (AES-256-GCM) в силе.
 
 HTTPS Only: The HTTP Server (Mode 2) MUST run over HTTPS. Self-signed certificates are accepted; the app validates the checksum.
 Payload Encryption (P2P): All P2P data streams must be encrypted using AES-256-GCM. The key is negotiated via a Diffie-Hellman exchange during the initial handshake (or use the plugin's native encryption if provided).

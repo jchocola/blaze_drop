@@ -87,29 +87,6 @@ abstract final class AppConstants {
   static const String webClientCssPath = 'assets/web_client/style.css';
   static const String webClientJsPath = 'assets/web_client/app.js';
 
-  // --- Module C: TLS (FUNCTIONALITY.md §7 "HTTPS Only") -------------------
-
-  /// CN + DNS SAN used in the generated server (leaf) certificate.
-  static const String serverTlsHostname = 'blazedrop.local';
-
-  /// Subject of the persistent root CA guests install to trust the hub.
-  static const String serverCaSubjectName = 'BlazeDrop Root CA';
-
-  /// Cache file names for the persistent root CA.
-  static const String serverCaCertFile = 'ca_cert.pem';
-  static const String serverCaKeyFile = 'ca_key.pem';
-
-  /// Cache file names for the persisted server (leaf) identity.
-  static const String serverTlsCertFile = 'server_cert.pem';
-  static const String serverTlsKeyFile = 'server_key.pem';
-  static const String serverTlsMetaFile = 'tls_meta.json';
-
-  /// Route that serves the root CA for guests to download/install.
-  static const String webClientCaPath = '/ca.pem';
-
-  /// Scheme prefix of the advertised hub URL.
-  static const String serverSchemeHttps = 'https';
-
   // --- App version (compile-time fallback) --------------------------------
 
   /// Fallback app version used when the `package_info_plus` platform channel

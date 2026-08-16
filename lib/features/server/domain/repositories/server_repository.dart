@@ -37,6 +37,10 @@ abstract interface class ServerRepository {
   /// Opens the host file picker and returns files staged for publication.
   Future<List<HostPublishFile>> pickHostFiles();
 
+  /// Opens the host device photo gallery and returns photos staged for
+  /// publication.
+  Future<List<HostPublishFile>> pickHostGalleryPhotos();
+
   /// Copies [files] from the host device into the hub's shared storage so
   /// guests can download them. Returns the resulting shareable files.
   Future<List<ServerSharedFile>> publishFiles(List<HostPublishFile> files);

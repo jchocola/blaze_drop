@@ -28,7 +28,6 @@ class P2pState extends Equatable {
     this.selectedFiles = const [],
     this.transfer,
     this.isSending = false,
-    this.nearbyPermissionDenied = false,
     this.error,
   });
 
@@ -55,10 +54,6 @@ class P2pState extends Equatable {
   /// True while an outgoing transfer is in flight.
   final bool isSending;
 
-  /// True when the Android "Nearby devices" permission was denied and
-  /// discovery cannot run until the user grants it.
-  final bool nearbyPermissionDenied;
-
   final String? error;
 
   /// Total size of the staged payload.
@@ -73,7 +68,6 @@ class P2pState extends Equatable {
     List<FileItem>? selectedFiles,
     TransferSession? transfer,
     Object? isSending = _unset,
-    Object? nearbyPermissionDenied = _unset,
     Object? error = _unset,
   }) {
     return P2pState(
@@ -89,9 +83,6 @@ class P2pState extends Equatable {
       isSending: identical(isSending, _unset)
           ? this.isSending
           : isSending as bool,
-      nearbyPermissionDenied: identical(nearbyPermissionDenied, _unset)
-          ? this.nearbyPermissionDenied
-          : nearbyPermissionDenied as bool,
       error: identical(error, _unset) ? this.error : error as String?,
     );
   }
@@ -108,7 +99,6 @@ class P2pState extends Equatable {
     selectedFiles,
     transfer,
     isSending,
-    nearbyPermissionDenied,
     error,
   ];
 }

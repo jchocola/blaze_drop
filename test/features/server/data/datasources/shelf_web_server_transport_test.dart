@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:blaze_drop/features/server/data/datasources/local_ip_resolver.dart';
 import 'package:blaze_drop/features/server/data/datasources/media_store.dart';
 import 'package:blaze_drop/features/server/data/datasources/shelf_web_server_transport.dart';
-import 'package:blaze_drop/features/server/data/datasources/tls_certificate_provider.dart';
 import 'package:blaze_drop/features/server/data/datasources/web_client_assets.dart';
 import 'package:blaze_drop/features/server/domain/entities/connected_client.dart';
 import 'package:blaze_drop/features/server/domain/entities/downloaded_file.dart';
@@ -14,7 +13,6 @@ import 'package:blaze_drop/features/server/domain/entities/server_session.dart';
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 
 class _FakeIpResolver implements LocalIpResolver {
   const _FakeIpResolver(this.ip);
@@ -74,26 +72,14 @@ void main() {
   late Directory receivedDir;
   late List<ServerUploadEvent> uploadEvents;
   late StreamSubscription<ServerUploadEvent> uploadSubscription;
+  late http.Client client;
 
-  // TLS identity is generated once (RSA keygen is slow) and cached in a temp
-  // dir; all tests reuse the same certificate because the fake IP is fixed.
-  late Directory tlsDir;
-  late TlsCertificateProvider tlsProvider;
-  late http.Client client; // accepts self-signed certs (test-only).
-
-  setUpAll(() async {
-    tlsDir = await Directory.systemTemp.createTemp('blazedrop_tls_test');
-    tlsProvider = FileSystemTlsCertificateProvider(
-      cacheDirectoryProvider: () async => tlsDir,
-    );
-    client = IOClient(
-      HttpClient()..badCertificateCallback = (_, _, _) => true,
-    );
+  setUpAll(() {
+    client = http.Client();
   });
 
-  tearDownAll(() async {
+  tearDownAll(() {
     client.close();
-    await tlsDir.delete(recursive: true);
   });
 
   setUp(() async {
@@ -108,7 +94,6 @@ void main() {
         css: 'body{}',
         js: 'console.log(1);',
       ),
-      tlsProvider: tlsProvider,
       sharedDirectoryProvider: () async => tempDir.path,
       mediaStore: _FakeMediaStore(receivedDir.path),
       clientTimeout: const Duration(seconds: 5),
@@ -128,59 +113,26 @@ void main() {
       transport.start(preferredPort: 0, sessionTimeoutMinutes: 15);
 
   Uri hubUri(ServerSession session, String path) =>
-      Uri.parse('https://127.0.0.1:${session.port}$path');
+      Uri.parse('http://127.0.0.1:${session.port}$path');
 
-  test('starts on a free port, serving HTTPS with a cert fingerprint', () async {
+  test('starts on a free port, serving plain HTTP', () async {
     final session = await startHub();
 
     expect(session.status, ServerStatus.active);
     expect(session.localIp, '192.168.1.10');
     expect(session.port, greaterThan(0));
-    expect(session.isHttps, isTrue);
-    expect(session.url, 'https://192.168.1.10:${session.port}');
-    expect(session.directConnect, 'https://192.168.1.10:${session.port}');
-    expect(session.certFingerprint, isNotNull);
-    expect(session.certFingerprint, matches(RegExp(r'^[0-9a-f]{64}$')));
-    expect(
-      session.qrCodeData,
-      'https://192.168.1.10:${session.port}#sha256=${session.certFingerprint}',
-    );
+    expect(session.url, 'http://192.168.1.10:${session.port}');
+    expect(session.directConnect, 'http://192.168.1.10:${session.port}');
+    expect(session.qrCodeData, 'http://192.168.1.10:${session.port}');
   });
 
-  test('serves the embedded web client over TLS at GET /', () async {
+  test('serves the embedded web client over HTTP at GET /', () async {
     final session = await startHub();
     final response = await client.get(hubUri(session, '/'));
 
     expect(response.statusCode, 200);
     expect(response.body, '<html>guest</html>');
     expect(response.headers['content-type'], contains('text/html'));
-  });
-
-  test('serves the root CA at GET /ca.pem for guest trust', () async {
-    final session = await startHub();
-    final response = await client.get(hubUri(session, '/ca.pem'));
-
-    expect(response.statusCode, 200);
-    expect(response.body, contains('-----BEGIN CERTIFICATE-----'));
-    expect(response.body, contains('-----END CERTIFICATE-----'));
-    expect(response.headers['content-type'], contains('pem'));
-  });
-
-  test('rejects plain HTTP on the TLS port', () async {
-    final session = await startHub();
-    final plain = HttpClient();
-    try {
-      final request = await plain
-          .getUrl(Uri.parse('http://127.0.0.1:${session.port}/'))
-          .then((r) => r.close());
-      fail('plain HTTP should not reach the TLS server, got: $request');
-    } on HttpException {
-      // Expected: the TLS server refuses a plaintext client.
-    } on SocketException {
-      // Also acceptable: connection closed/reset on plaintext.
-    } finally {
-      plain.close();
-    }
   });
 
   test('starting the server clears the upload cache', () async {

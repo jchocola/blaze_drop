@@ -87,7 +87,10 @@ class _NoTarget extends StatelessWidget {
             color: AppColors.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
-          const Text('NO TARGET ACQUIRED', style: AppTextStyles.headlineMd),
+          const Text(
+            'NO TARGET ACQUIRED',
+            style: AppTextStyles.headlineMd,
+          ),
           const SizedBox(height: 12),
           BlazeButton(
             label: 'BACK TO GRID',
@@ -172,9 +175,7 @@ class _Header extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'TARGET ACQUIRED',
-            style: AppTextStyles.headlineLg.copyWith(
-              color: AppColors.onSurface,
-            ),
+            style: AppTextStyles.headlineLg.copyWith(color: AppColors.onSurface),
           ),
           const SizedBox(height: 4),
           Text(
@@ -264,20 +265,25 @@ class _PayloadSection extends StatelessWidget {
                 color: AppColors.primaryContainer,
               ),
             ),
-            _AddButton(
-              icon: Icons.photo_library_outlined,
-              color: AppColors.tertiaryContainer,
-              onTap: state.isSending
-                  ? null
-                  : () => context.read<P2pCubit>().pickGalleryPhotos(),
-            ),
-            const SizedBox(width: 8),
-            _AddButton(
-              icon: Icons.add,
-              color: AppColors.primaryContainer,
-              onTap: state.isSending
-                  ? null
-                  : () => context.read<P2pCubit>().pickFiles(),
+            InkWell(
+              onTap: state.isSending ? null : () => context.read<P2pCubit>().pickFiles(),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHigh,
+                  border: Border.all(
+                    color: AppColors.primaryContainer,
+                    width: 1,
+                  ),
+                  borderRadius: AppTheme.sharp,
+                ),
+                child: const Icon(
+                  Icons.add,
+                  size: 18,
+                  color: AppColors.primaryContainer,
+                ),
+              ),
             ),
           ],
         ),
@@ -301,85 +307,42 @@ class _PayloadSection extends StatelessWidget {
 class _DropZone extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        InkWell(
-          onTap: () => context.read<P2pCubit>().pickFiles(),
-          child: Container(
-            height: 110,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerLowest,
-              border: Border.all(
-                color: AppColors.primaryContainer.withValues(alpha: 0.6),
-                width: 2,
-              ),
-              borderRadius: AppTheme.sharp,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.cloud_upload_outlined,
-                  size: 30,
-                  color: AppColors.primaryContainer,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'TAP OR DRAG FILES HERE',
-                  style: AppTextStyles.labelCaps.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Files & photos supported',
-                  style: AppTextStyles.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        BlazeButton(
-          label: 'ADD FROM GALLERY',
-          variant: BlazeButtonVariant.outline,
-          compact: true,
-          icon: Icons.photo_library_outlined,
-          onPressed: () => context.read<P2pCubit>().pickGalleryPhotos(),
-        ),
-      ],
-    );
-  }
-}
-
-/// Square icon action button for the payload header (add files / photos).
-class _AddButton extends StatelessWidget {
-  const _AddButton({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: () => context.read<P2pCubit>().pickFiles(),
       child: Container(
-        width: 32,
-        height: 32,
+        height: 110,
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerHigh,
-          border: Border.all(color: color, width: 1),
+          color: AppColors.surfaceContainerLowest,
+          border: Border.all(
+            color: AppColors.primaryContainer.withValues(alpha: 0.6),
+            width: 2,
+          ),
           borderRadius: AppTheme.sharp,
         ),
-        child: Icon(icon, size: 18, color: color),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.cloud_upload_outlined,
+              size: 30,
+              color: AppColors.primaryContainer,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'TAP OR DRAG FILES HERE',
+              style: AppTextStyles.labelCaps.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Multiple files supported',
+              style: AppTextStyles.bodySm.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -449,12 +412,10 @@ class _BottomBar extends StatelessWidget {
     final sending = state.isSending;
 
     // Live progress view while an outgoing transfer is in flight.
-    if (sending ||
-        (transfer?.direction == TransferDirection.outgoing &&
-            transfer?.status == TransferStatus.transferring)) {
+    if (sending || (transfer?.direction == TransferDirection.outgoing &&
+        transfer?.status == TransferStatus.transferring)) {
       return _TransferPanel(
-        transfer:
-            transfer ??
+        transfer: transfer ??
             TransferSession(
               sessionId: '',
               peer: state.connectedPeer!,
@@ -471,12 +432,13 @@ class _BottomBar extends StatelessWidget {
     }
 
     // Failed / declined.
-    if (transfer?.status == TransferStatus.failed || state.error != null) {
+    if (transfer?.status == TransferStatus.failed ||
+        state.error != null) {
       return _ErrorPanel(
-        message: state.error ?? transfer?.error ?? 'Transfer failed',
-        onRetry: state.selectedFiles.isEmpty
-            ? null
-            : () => context.read<P2pCubit>().sendFiles(),
+        message: state.error ??
+            transfer?.error ??
+            'Transfer failed',
+        onRetry: state.selectedFiles.isEmpty ? null : () => context.read<P2pCubit>().sendFiles(),
       );
     }
 
@@ -491,9 +453,7 @@ class _BottomBar extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: AppColors.outlineVariant, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -545,7 +505,9 @@ class _StatBlock extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           value,
-          style: AppTextStyles.headlineMd.copyWith(color: AppColors.onSurface),
+          style: AppTextStyles.headlineMd.copyWith(
+            color: AppColors.onSurface,
+          ),
         ),
       ],
     );
@@ -568,9 +530,7 @@ class _TransferPanel extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: AppColors.outlineVariant, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -628,9 +588,7 @@ class _DonePanel extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: AppColors.outlineVariant, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -695,9 +653,7 @@ class _ErrorPanel extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: AppColors.outlineVariant, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -5,7 +5,7 @@
 BlazeDrop enables fast, secure file sharing between nearby devices without relying on cloud services. It operates in two mutually exclusive modes:
 
 - **P2P Mode** — device-to-device transfer over Wi-Fi Direct (Android) / MultipeerConnectivity (iOS). Both devices run BlazeDrop.
-- **Server Mode** — the host runs a local HTTPS server; any guest device connects via browser (QR code scan) to upload or download files — no app installation required.
+- **Server Mode** — the host runs a local HTTP server; any guest device connects via browser (QR code scan) to upload or download files — no app installation required.
 
 ---
 
@@ -14,7 +14,7 @@ BlazeDrop enables fast, secure file sharing between nearby devices without relyi
 | Capability              | Details                                                                     |
 | ----------------------- | --------------------------------------------------------------------------- |
 | **P2P Transfer**        | AES-256-GCM encrypted, chunked (1 MB), with real-time speed & ETA           |
-| **Server Mode**         | Self-hosted HTTPS server with QR code, self-signed TLS, auto-port selection |
+| **Server Mode**         | Self-hosted HTTP server with QR code, auto-port selection                   |
 | **Web Client**          | Guest-facing upload/download UI served from `assets/web_client/`            |
 | **Transfer History**    | Full session log with status, file details, and timestamps                  |
 | **Conflict Resolution** | Auto-renames duplicates (`file (1).ext`) — no silent overwrites             |
@@ -31,7 +31,6 @@ BlazeDrop enables fast, secure file sharing between nearby devices without relyi
 | **DI**               | `get_it`                                               |
 | **Navigation**       | `go_router`                                            |
 | **Server**           | `shelf`, `shelf_router`, `shelf_multipart`             |
-| **Encryption**       | `pointycastle` (AES-256-GCM, self-signed TLS)          |
 | **QR Code**          | `qr_flutter`                                           |
 | **Storage**          | `shared_preferences`, `gal` (gallery), `path_provider` |
 | **Testing**          | `bloc_test`, `mocktail`, `flutter_test`                |

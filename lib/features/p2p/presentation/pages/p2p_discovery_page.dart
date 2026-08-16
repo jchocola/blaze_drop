@@ -69,13 +69,9 @@ class _P2pDiscoveryPageState extends State<P2pDiscoveryPage> {
                           state.peers.isEmpty) {
                         return _ScanPrompt(
                           nodeName: state.nodeName,
-                          permissionDenied: state.nearbyPermissionDenied,
                           onScan: () => context
                               .read<P2pCubit>()
                               .startScan(),
-                          onOpenSettings: () => context
-                              .read<P2pCubit>()
-                              .openNearbySettings(),
                         );
                       }
                       return _PeerList(
@@ -160,93 +156,51 @@ class _Header extends StatelessWidget {
 }
 
 class _ScanPrompt extends StatelessWidget {
-  const _ScanPrompt({
-    required this.nodeName,
-    required this.permissionDenied,
-    required this.onScan,
-    required this.onOpenSettings,
-  });
+  const _ScanPrompt({required this.nodeName, required this.onScan});
 
   final String nodeName;
-
-  /// True when the Android "Nearby devices" permission was denied and
-  /// discovery cannot start until the user grants it.
-  final bool permissionDenied;
   final VoidCallback onScan;
-  final VoidCallback onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(vertical: AppConstants.unit * 4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            RadarScan(size: 160),
-            const SizedBox(height: 24),
-            SectionLabel(
-              text: 'NODE // ${nodeName.isEmpty ? 'INITIALIZING' : nodeName}',
-              color: AppColors.onSurfaceVariant,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              permissionDenied
-                  ? 'NEARBY ACCESS REQUIRED'
-                  : 'NO NODES DETECTED',
-              style: AppTextStyles.headlineMd.copyWith(
-                color: permissionDenied
-                    ? AppColors.tertiaryContainer
-                    : AppColors.onSurface,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          RadarScan(size: 160),
+          const SizedBox(height: 24),
+          SectionLabel(
+            text: 'NODE // ${nodeName.isEmpty ? 'INITIALIZING' : nodeName}',
+            color: AppColors.onSurfaceVariant,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'NO NODES DETECTED',
+            style: AppTextStyles.headlineMd.copyWith(color: AppColors.onSurface),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppConstants.unit * 10),
+            child: Text(
+              'Hold both devices on the same Wi-Fi network, then rescan to '
+              'discover nearby nodes.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodySm.copyWith(
+                color: AppColors.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.unit * 10,
-              ),
-              child: Text(
-                permissionDenied
-                    ? 'BlazeDrop needs the "Nearby devices" permission to '
-                          'discover peers on your local network. Grant access '
-                          'to continue, or open settings if the system dialog '
-                          'was dismissed for good.'
-                    : 'Hold both devices on the same Wi-Fi network, then '
-                          'rescan to discover nearby nodes.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.bodySm.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: 200,
+            child: BlazeButton(
+              label: 'INITIATE SCAN',
+              icon: Icons.radar_outlined,
+              variant: BlazeButtonVariant.primary,
+              onPressed: onScan,
             ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: 200,
-              child: BlazeButton(
-                label: permissionDenied
-                    ? 'GRANT NEARBY ACCESS'
-                    : 'INITIATE SCAN',
-                icon: permissionDenied
-                    ? Icons.wifi_tethering_outlined
-                    : Icons.radar_outlined,
-                variant: BlazeButtonVariant.primary,
-                onPressed: onScan,
-              ),
-            ),
-            if (permissionDenied) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                width: 200,
-                child: BlazeButton(
-                  label: 'OPEN SETTINGS',
-                  icon: Icons.settings_outlined,
-                  variant: BlazeButtonVariant.ghost,
-                  onPressed: onOpenSettings,
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

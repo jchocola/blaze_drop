@@ -120,7 +120,7 @@ test('traffic on the wire contains no plaintext metadata', () async {
 
 Часть 2. HTTPS для Server Mode (§7)
 
-> ✅ РЕАЛИЗОВАНО (2026-08-15). Root CA + leaf: `self_signed_certificate.dart` (чистый Dart, pointycastle — пакет `certificates` не существует на pub.dev), `tls_certificate_provider.dart` (persistent root CA + leaf, кэш в Documents/BlazeDrop/tls), `shelf_web_server_transport.dart` (SecurityContext + `shelf_io.serve(securityContext:)`, `GET /ca.pem`), `ServerSession.isHttps/certFingerprint/qrCodeData`. QR = `https://ip:port#sha256=<fingerprint>`. Web-клиент: баннер «INSTALL CA (/ca.pem)». iOS ATS: `NSAllowsLocalNetworking`. Гость ставит root CA один раз → предупреждение «This connection is not private» исчезает.
+> ⛔ ОТКЛЮЧЕНО (2026-08-16). HTTPS/TLS убран из кода — Server Mode работает только по plain HTTP (`shelf_io.serve(handler, addr, port)` без `securityContext`). Удалены: `self_signed_certificate.dart`, `tls_certificate_provider.dart`, `ServerSession.isHttps/certFingerprint`, `GET /ca.pem`, баннер «INSTALL CA» в web-клиенте, `pointycastle` из pubspec. QR/DIRECT CONNECT = `http://ip:port`. Раздел ниже остаётся как спецификация на будущее (если HTTPS вернут), но текущая реализация его не использует.
 
 Сейчас ShelfWebServerTransport запускается через shelf_io.serve(handler, anyIPv4, port) — plain HTTP (shelf_web_server_transport.dart, строки 115–125).
 

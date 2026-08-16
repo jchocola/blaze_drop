@@ -5,8 +5,6 @@ import 'package:blaze_drop/core/theme/theme.dart';
 import 'package:blaze_drop/features/home/presentation/pages/home_page.dart';
 import 'package:blaze_drop/features/onboarding/domain/entities/permission_requirement.dart';
 import 'package:blaze_drop/features/onboarding/domain/use_cases/check_permissions_use_case.dart';
-import 'package:blaze_drop/features/onboarding/domain/use_cases/complete_onboarding_use_case.dart';
-import 'package:blaze_drop/features/onboarding/domain/use_cases/get_onboarding_completion_use_case.dart';
 import 'package:blaze_drop/features/onboarding/domain/use_cases/open_app_settings_use_case.dart';
 import 'package:blaze_drop/features/onboarding/domain/use_cases/request_permissions_use_case.dart';
 import 'package:blaze_drop/features/onboarding/presentation/cubit/onboarding_cubit.dart';
@@ -24,11 +22,6 @@ class _MockRequestPermissions extends Mock
     implements RequestPermissionsUseCase {}
 
 class _MockOpenAppSettings extends Mock implements OpenAppSettingsUseCase {}
-
-class _MockGetOnboardingCompletion extends Mock
-    implements GetOnboardingCompletionUseCase {}
-
-class _MockCompleteOnboarding extends Mock implements CompleteOnboardingUseCase {}
 
 const _pendingPermissions = <PermissionRequirement>[
   PermissionRequirement(
@@ -54,19 +47,11 @@ void main() {
   late _MockCheckPermissions checkPermissions;
   late _MockRequestPermissions requestPermissions;
   late _MockOpenAppSettings openAppSettings;
-  late _MockGetOnboardingCompletion getOnboardingCompletion;
-  late _MockCompleteOnboarding completeOnboarding;
 
   setUp(() {
     checkPermissions = _MockCheckPermissions();
     requestPermissions = _MockRequestPermissions();
     openAppSettings = _MockOpenAppSettings();
-    getOnboardingCompletion = _MockGetOnboardingCompletion();
-    completeOnboarding = _MockCompleteOnboarding();
-    when(
-      () => getOnboardingCompletion.execute(),
-    ).thenAnswer((_) async => false);
-    when(() => completeOnboarding.execute()).thenAnswer((_) async {});
   });
 
   OnboardingCubit buildCubit() {
@@ -74,8 +59,6 @@ void main() {
       checkPermissionsUseCase: checkPermissions,
       requestPermissionsUseCase: requestPermissions,
       openAppSettingsUseCase: openAppSettings,
-      getOnboardingCompletionUseCase: getOnboardingCompletion,
-      completeOnboardingUseCase: completeOnboarding,
       splashDelay: Duration.zero,
     );
   }
@@ -185,47 +168,6 @@ void main() {
     expect(find.byType(OnboardingPage), findsNothing);
     expect(find.text('SELECT MODE'), findsOneWidget);
   });
-
-  testWidgets('CONTINUE ANYWAY enters Home without granting permissions', (
-    tester,
-  ) async {
-    when(
-      () => checkPermissions.execute(),
-    ).thenAnswer((_) async => _pendingPermissions);
-
-    final cubit = buildCubit();
-    await tester.pumpWidget(buildApp(cubit));
-    await pumpThroughSplash(tester);
-
-    expect(find.text('CONTINUE ANYWAY'), findsOneWidget);
-    await tester.tap(find.text('CONTINUE ANYWAY'));
-    await tester.pump(); // finishOnboarding persists + emits
-    await tester.pump(const Duration(milliseconds: 60));
-    await tester.pump(const Duration(milliseconds: 400)); // navigate to home
-    await tester.pump(const Duration(milliseconds: 400));
-
-    expect(find.byType(OnboardingPage), findsNothing);
-    expect(find.text('SELECT MODE'), findsOneWidget);
-    verify(() => completeOnboarding.execute()).called(1);
-  });
-
-  testWidgets(
-    'splash routes straight to Home when onboarding was completed before',
-    (tester) async {
-      when(
-        () => getOnboardingCompletion.execute(),
-      ).thenAnswer((_) async => true);
-      when(
-        () => checkPermissions.execute(),
-      ).thenAnswer((_) async => _pendingPermissions);
-
-      await tester.pumpWidget(buildApp(buildCubit()));
-      await pumpThroughSplash(tester);
-
-      expect(find.byType(OnboardingPage), findsNothing);
-      expect(find.text('SELECT MODE'), findsOneWidget);
-    },
-  );
 
   testWidgets('splash shows brand mark and status line', (tester) async {
     // Hold the permission check open so the splash stays on screen.

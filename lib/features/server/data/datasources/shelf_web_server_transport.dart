@@ -21,7 +21,6 @@ import '../../domain/entities/server_upload_event.dart';
 import 'device_media_store.dart';
 import 'local_ip_resolver.dart';
 import 'media_store.dart';
-import 'tls_certificate_provider.dart';
 import 'web_client_assets.dart';
 import 'web_server_transport.dart';
 
@@ -45,20 +44,17 @@ class ShelfWebServerTransport implements WebServerTransport {
   ShelfWebServerTransport({
     required LocalIpResolver ipResolver,
     required WebClientAssets assets,
-    TlsCertificateProvider? tlsProvider,
     Future<String> Function()? sharedDirectoryProvider,
     MediaStore? mediaStore,
     this.clientTimeout = AppConstants.serverClientTimeout,
   }) : _ipResolver = ipResolver,
        _assets = assets,
-       _tlsProvider = tlsProvider ?? FileSystemTlsCertificateProvider(),
        _sharedDirectoryProvider =
            sharedDirectoryProvider ?? _defaultSharedDirectory,
        _mediaStore = mediaStore ?? DeviceMediaStore();
 
   final LocalIpResolver _ipResolver;
   final WebClientAssets _assets;
-  final TlsCertificateProvider _tlsProvider;
   final Future<String> Function() _sharedDirectoryProvider;
   final MediaStore _mediaStore;
   final Duration clientTimeout;
@@ -69,7 +65,6 @@ class ShelfWebServerTransport implements WebServerTransport {
   var _lastSessionTimeoutMinutes = _defaultSessionMinutes;
   Duration _sessionTimeout = const Duration(minutes: 15);
   ServerSession _session = const ServerSession(status: ServerStatus.idle);
-  String _rootCaPem = '';
   final Map<String, ConnectedClient> _clients = {};
   final Map<String, DateTime> _connectedAt = {};
   bool _disposed = false;
@@ -113,15 +108,6 @@ class ShelfWebServerTransport implements WebServerTransport {
         : _defaultSessionMinutes;
     _sessionTimeout = Duration(minutes: _lastSessionTimeoutMinutes);
     final ip = await _ipResolver.resolve();
-
-    // Root CA + leaf TLS identity (FUNCTIONALITY.md §7 "HTTPS Only"). The
-    // root CA is served at /ca.pem so guests can install it and remove the
-    // browser warning.
-    final tls = await _tlsProvider.load(ipAddress: ip);
-    _rootCaPem = tls.rootCaPem;
-    final securityContext = SecurityContext()
-      ..useCertificateChainBytes(utf8.encode(tls.leaf.certificatePem))
-      ..usePrivateKeyBytes(utf8.encode(tls.leaf.privateKeyPem));
     final handler = _handler();
 
     // Try preferredPort, then 8081, 8082, … finally an OS-assigned port
@@ -130,23 +116,13 @@ class ShelfWebServerTransport implements WebServerTransport {
     var port = preferredPort;
     for (var attempt = 0; attempt < AppConstants.serverPortAttempts; attempt++) {
       try {
-        server = await shelf_io.serve(
-          handler,
-          InternetAddress.anyIPv4,
-          port,
-          securityContext: securityContext,
-        );
+        server = await shelf_io.serve(handler, InternetAddress.anyIPv4, port);
         break;
       } on SocketException {
         port++;
       }
     }
-    server ??= await shelf_io.serve(
-      handler,
-      InternetAddress.anyIPv4,
-      0,
-      securityContext: securityContext,
-    );
+    server ??= await shelf_io.serve(handler, InternetAddress.anyIPv4, 0);
 
     // A fresh session starts with an empty upload cache (FUNCTIONALITY.md §7
     // auto-cleanup); a port refresh keeps its files.
@@ -160,8 +136,6 @@ class ShelfWebServerTransport implements WebServerTransport {
       port: server.port,
       localIp: ip,
       startedAt: DateTime.now(),
-      isHttps: true,
-      certFingerprint: tls.leaf.fingerprintSha256,
     );
     _statusController.add(_session);
     _pruneTimer?.cancel();
@@ -229,10 +203,6 @@ class ShelfWebServerTransport implements WebServerTransport {
         request,
         AppConstants.webClientJsPath,
         'application/javascript',
-      ))
-      ..get(AppConstants.webClientCaPath, (Request request) => Response.ok(
-        _rootCaPem,
-        headers: const {'Content-Type': 'application/x-pem-file'},
       ))
       ..get('/files', _handleFiles)
       ..get('/download/<fileId>', _handleDownload)

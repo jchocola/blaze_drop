@@ -9,7 +9,7 @@ import '../datasources/gallery_picker_data_source.dart';
 import '../datasources/node_identity_store.dart';
 import '../datasources/peer_transport_data_source.dart';
 
-/// Concrete [PeerRepository] backed by the socket transport + native pickers.
+/// Concrete [PeerRepository] backed by the socket transport + native picker.
 class PeerRepositoryImpl implements PeerRepository {
   const PeerRepositoryImpl({
     required PeerTransportDataSource transport,

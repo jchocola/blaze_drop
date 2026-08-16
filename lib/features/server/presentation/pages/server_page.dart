@@ -330,7 +330,6 @@ class _BeaconCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fingerprint = session.certFingerprint;
     return _Card(
       child: Column(
         children: [
@@ -343,15 +342,9 @@ class _BeaconCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const SectionLabel(
-                      text: 'DIRECT CONNECT IP',
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                    const Spacer(),
-                    _SecureTag(isHttps: session.isHttps),
-                  ],
+                const SectionLabel(
+                  text: 'DIRECT CONNECT IP',
+                  color: AppColors.onSurfaceVariant,
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -359,7 +352,7 @@ class _BeaconCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         session.directConnect.isEmpty
-                            ? 'https://—'
+                            ? 'http://—'
                             : session.directConnect,
                         style: AppTextStyles.codeSm.copyWith(
                           color: AppColors.primaryContainer,
@@ -377,21 +370,10 @@ class _BeaconCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (fingerprint != null && fingerprint.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'FINGERPRINT  ${_formatFingerprint(fingerprint)}',
-                    style: AppTextStyles.codeSm.copyWith(
-                      fontSize: 11,
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 8),
                 Text(
-                  'Guests see a TLS warning until they install the '
-                  'BlazeDrop certificate once: open ${AppConstants.webClientCaPath} '
-                  'on the guest device (or tap "Proceed" on desktop/Android).',
+                  'Guests open this address in any browser on the same '
+                  'network to upload or download files.',
                   style: AppTextStyles.bodySm.copyWith(
                     fontSize: 12,
                     color: AppColors.onSurfaceVariant,
@@ -410,44 +392,6 @@ class _BeaconCard extends StatelessWidget {
             onPressed: isRefreshing ? null : onRefresh,
           ),
         ],
-      ),
-    );
-  }
-
-  static String _formatFingerprint(String hex) {
-    final upper = hex.toUpperCase();
-    final parts = <String>[];
-    for (var i = 0; i < upper.length; i += 2) {
-      parts.add(upper.substring(i, i + 2 > upper.length ? upper.length : i + 2));
-    }
-    return parts.join(':');
-  }
-}
-
-/// Small "SECURE // TLS" status tag shown on the beacon card.
-class _SecureTag extends StatelessWidget {
-  const _SecureTag({required this.isHttps});
-
-  final bool isHttps;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isHttps
-        ? AppColors.tertiaryContainer
-        : AppColors.secondaryContainer;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: AppTheme.sharp,
-      ),
-      child: Text(
-        isHttps ? 'SECURE // TLS' : 'UNENCRYPTED',
-        style: AppTextStyles.labelCaps.copyWith(
-          fontSize: 9,
-          letterSpacing: 0.8,
-          color: isHttps ? AppColors.onTertiary : AppColors.onSecondary,
-        ),
       ),
     );
   }
