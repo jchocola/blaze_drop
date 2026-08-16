@@ -65,6 +65,13 @@ class PeerTransportImpl implements PeerTransportDataSource {
   final List<InternetAddress> _discoveryTargets;
   final Future<String> Function() _inboxDirectoryProvider;
 
+  /// `RawDatagramSocket.bind(reusePort: true)` is only supported on
+  /// macOS/iOS/Windows. On Linux/Android the Dart VM logs
+  /// "reusePort not supported on this platform" and the socket can end up
+  /// not bound to [beaconPort], which makes sends fail with EACCES.
+  bool get _supportsReusePort =>
+      Platform.isMacOS || Platform.isWindows || Platform.isIOS;
+
   @override
   String get nodeId => _nodeId;
 
@@ -104,8 +111,11 @@ class PeerTransportImpl implements PeerTransportDataSource {
         InternetAddress.anyIPv4,
         beaconPort,
         reuseAddress: true,
-        reusePort: true,
+        reusePort: _supportsReusePort,
       );
+      // Sending to a broadcast address (255.255.255.255) requires
+      // SO_BROADCAST, otherwise send() fails with EACCES (errno 13).
+      _beaconSocket!.broadcastEnabled = true;
       _beaconSocket!.listen(
         _onDatagram,
         onError: (Object error, StackTrace stack) {
