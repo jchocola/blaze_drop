@@ -67,7 +67,7 @@ class _SplashPageState extends State<SplashPage>
         if (!state.isInitialized) {
           return;
         }
-        if (state.allMandatoryGranted) {
+        if (state.shouldEnterHome) {
           context.go(AppConstants.homePath);
         } else {
           context.go(AppConstants.onboardingPath);

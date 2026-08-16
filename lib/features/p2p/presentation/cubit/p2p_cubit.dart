@@ -7,7 +7,9 @@ import '../../domain/entities/file_item.dart';
 import '../../domain/entities/incoming_connection_request.dart';
 import '../../domain/entities/peer_device.dart';
 import '../../domain/entities/transfer_session.dart';
+import '../../domain/use_cases/ensure_nearby_permission_use_case.dart';
 import '../../domain/use_cases/get_local_node_name_use_case.dart';
+import '../../domain/use_cases/open_nearby_settings_use_case.dart';
 import '../../domain/use_cases/pick_files_use_case.dart';
 import '../../domain/use_cases/pick_gallery_photos_use_case.dart';
 import '../../domain/use_cases/respond_to_request_use_case.dart';
@@ -38,6 +40,8 @@ class P2pCubit extends Cubit<P2pState> {
     required this.pickGalleryPhotosUseCase,
     required this.sendFilesUseCase,
     required this.respondToRequestUseCase,
+    required this.ensureNearbyPermissionUseCase,
+    required this.openNearbySettingsUseCase,
   }) : super(const P2pState());
 
   final GetLocalNodeNameUseCase getLocalNodeNameUseCase;
@@ -50,6 +54,10 @@ class P2pCubit extends Cubit<P2pState> {
   final PickFilesUseCase pickFilesUseCase;
   final SendFilesUseCase sendFilesUseCase;
   final RespondToRequestUseCase respondToRequestUseCase;
+
+  /// Gates discovery behind the Android "Nearby devices" runtime permission.
+  final EnsureNearbyPermissionUseCase ensureNearbyPermissionUseCase;
+  final OpenNearbySettingsUseCase openNearbySettingsUseCase;
 
   StreamSubscription<List<PeerDevice>>? _peersSub;
   StreamSubscription<IncomingConnectionRequest>? _incomingSub;
@@ -101,10 +109,30 @@ class P2pCubit extends Cubit<P2pState> {
     }
   }
 
-  /// (Re)starts the discovery engine.
+  /// (Re)starts the discovery engine. On Android this first ensures the
+  /// "Nearby devices" runtime permission — if the user denies it, discovery
+  /// is blocked and the UI shows a grant prompt instead.
   Future<void> startScan() async {
-    emit(state.copyWith(scanStatus: P2pScanStatus.scanning, error: null));
+    emit(state.copyWith(
+      scanStatus: P2pScanStatus.scanning,
+      error: null,
+      nearbyPermissionDenied: false,
+    ));
     try {
+      final allowed = await ensureNearbyPermissionUseCase.execute();
+      if (!allowed) {
+        AppLogger.warning(
+          'Nearby devices access denied — P2P discovery blocked',
+        );
+        if (!isClosed) {
+          emit(state.copyWith(
+            scanStatus: P2pScanStatus.idle,
+            nearbyPermissionDenied: true,
+            error: 'Nearby access is required to discover devices',
+          ));
+        }
+        return;
+      }
       await startDiscoveryUseCase.execute();
       if (!isClosed) {
         emit(state.copyWith(scanStatus: P2pScanStatus.active));
@@ -119,6 +147,16 @@ class P2pCubit extends Cubit<P2pState> {
           ),
         );
       }
+    }
+  }
+
+  /// Opens the OS settings page so the user can re-enable a permanently
+  /// denied "Nearby devices" permission.
+  Future<void> openNearbySettings() async {
+    try {
+      await openNearbySettingsUseCase.execute();
+    } catch (error, stack) {
+      AppLogger.error('Failed to open app settings', error, stack);
     }
   }
 
