@@ -15,7 +15,6 @@ import 'package:blaze_drop/features/server/domain/entities/server_upload_event.d
 import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
-import 'package:blaze_drop/features/server/domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
@@ -46,9 +45,6 @@ class _MockWatchUploads extends Mock implements WatchUploadsUseCase {}
 class _MockListFiles extends Mock implements ListSharedFilesUseCase {}
 
 class _MockPickHostFiles extends Mock implements PickHostFilesUseCase {}
-
-class _MockPickHostGalleryPhotos extends Mock
-    implements PickHostGalleryPhotosUseCase {}
 
 class _MockPublishFiles extends Mock implements PublishFilesUseCase {}
 
@@ -91,7 +87,6 @@ void main() {
   late _MockWatchUploads watchUploads;
   late _MockListFiles listFiles;
   late _MockPickHostFiles pickHostFiles;
-  late _MockPickHostGalleryPhotos pickHostGalleryPhotos;
   late _MockPublishFiles publishFiles;
   late _MockDownloadSharedFile downloadSharedFile;
   late _MockSettingsRepository settingsRepository;
@@ -109,7 +104,6 @@ void main() {
     watchUploads = _MockWatchUploads();
     listFiles = _MockListFiles();
     pickHostFiles = _MockPickHostFiles();
-    pickHostGalleryPhotos = _MockPickHostGalleryPhotos();
     publishFiles = _MockPublishFiles();
     downloadSharedFile = _MockDownloadSharedFile();
     settingsRepository = _MockSettingsRepository();
@@ -121,9 +115,7 @@ void main() {
     when(
       () => settingsRepository.loadConfig(),
     ).thenAnswer((_) async => AppConfig.defaults);
-    when(
-      () => watchStatus.execute(),
-    ).thenAnswer((_) => statusController.stream);
+    when(() => watchStatus.execute()).thenAnswer((_) => statusController.stream);
     when(
       () => watchClients.execute(),
     ).thenAnswer((_) => clientsController.stream);
@@ -135,14 +127,18 @@ void main() {
         sessionTimeoutMinutes: any(named: 'sessionTimeoutMinutes'),
       ),
     ).thenAnswer((_) async => _activeSession);
+    when(() => listFiles.execute()).thenAnswer((_) async => const [_sharedFile]);
     when(
-      () => listFiles.execute(),
-    ).thenAnswer((_) async => const [_sharedFile]);
-    when(() => historyRepository.startSession()).thenAnswer(
+      () => historyRepository.startSession(),
+    ).thenAnswer(
       (_) async => SessionRecord(id: 'test', startedAt: DateTime.now()),
     );
-    when(() => historyRepository.endSession()).thenAnswer((_) async {});
-    when(() => historyRepository.addFile(any())).thenAnswer((_) async {});
+    when(
+      () => historyRepository.endSession(),
+    ).thenAnswer((_) async {});
+    when(
+      () => historyRepository.addFile(any()),
+    ).thenAnswer((_) async {});
   });
 
   tearDown(() async {
@@ -161,7 +157,6 @@ void main() {
       watchUploadsUseCase: watchUploads,
       listSharedFilesUseCase: listFiles,
       pickHostFilesUseCase: pickHostFiles,
-      pickHostGalleryPhotosUseCase: pickHostGalleryPhotos,
       publishFilesUseCase: publishFiles,
       downloadSharedFileUseCase: downloadSharedFile,
       settingsRepository: settingsRepository,
@@ -218,9 +213,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
 
-    clientsController.add(const [
-      ConnectedClient(id: 'x', name: 'NODE-X', ipAddress: '10.0.0.5'),
-    ]);
+    clientsController.add(
+      const [ConnectedClient(id: 'x', name: 'NODE-X', ipAddress: '10.0.0.5')],
+    );
     await tester.pump();
 
     await tester.scrollUntilVisible(
@@ -258,31 +253,11 @@ void main() {
 
     expect(find.text('HOST UPLOAD // DEPLOY ASSETS'), findsOneWidget);
     expect(find.text('PUSH FILES'), findsOneWidget);
-    expect(find.text('PUSH PHOTOS'), findsOneWidget);
 
     await tester.tap(find.text('PUSH FILES'));
     await tester.pump();
 
     verify(() => pickHostFiles.execute()).called(1);
-  });
-
-  testWidgets('PUSH PHOTOS stages gallery photos into the hub', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(900, 1800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    when(
-      () => pickHostGalleryPhotos.execute(),
-    ).thenAnswer((_) async => const []);
-    final cubit = buildCubit();
-    await tester.pumpWidget(buildApp(cubit));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-
-    expect(find.text('PUSH PHOTOS'), findsOneWidget);
-
-    await tester.tap(find.text('PUSH PHOTOS'));
-    await tester.pump();
-
-    verify(() => pickHostGalleryPhotos.execute()).called(1);
   });
 
   testWidgets('GET on a shared file pulls it to the host received folder', (

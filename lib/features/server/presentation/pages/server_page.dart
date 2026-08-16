@@ -69,7 +69,9 @@ class _ServerPageState extends State<ServerPage> {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('DIRECT CONNECT IP COPIED')));
+      ..showSnackBar(
+        const SnackBar(content: Text('DIRECT CONNECT IP COPIED')),
+      );
   }
 
   void _stopServer(BuildContext context) {
@@ -83,14 +85,10 @@ class _ServerPageState extends State<ServerPage> {
     context.read<ServerCubit>().pickAndPublishFiles();
   }
 
-  void _publishGalleryPhotos(BuildContext context) {
-    context.read<ServerCubit>().pickAndPublishGalleryPhotos();
-  }
-
   Future<void> _downloadFile(ServerSharedFile file) async {
-    final downloaded = await context.read<ServerCubit>().downloadSharedFile(
-      file.id,
-    );
+    final downloaded = await context
+        .read<ServerCubit>()
+        .downloadSharedFile(file.id);
     if (!mounted || downloaded == null) {
       return;
     }
@@ -121,8 +119,6 @@ class _ServerPageState extends State<ServerPage> {
                           onCopy: (session) =>
                               _copyDirectConnect(context, session),
                           onPublish: () => _publishFiles(context),
-                          onPublishGallery: () =>
-                              _publishGalleryPhotos(context),
                           onDownload: _downloadFile,
                         )
                       : const _StartingView(),
@@ -237,14 +233,12 @@ class _HubBody extends StatelessWidget {
     required this.state,
     required this.onCopy,
     required this.onPublish,
-    required this.onPublishGallery,
     required this.onDownload,
   });
 
   final ServerState state;
   final void Function(ServerSession session) onCopy;
   final VoidCallback onPublish;
-  final VoidCallback onPublishGallery;
   final void Function(ServerSharedFile file) onDownload;
 
   @override
@@ -261,11 +255,7 @@ class _HubBody extends StatelessWidget {
           onRefresh: () => context.read<ServerCubit>().refresh(),
         ),
         const SizedBox(height: 14),
-        _HostUploadCard(
-          isPublishing: state.isPublishing,
-          onPublish: onPublish,
-          onPublishGallery: onPublishGallery,
-        ),
+        _HostUploadCard(isPublishing: state.isPublishing, onPublish: onPublish),
         const SizedBox(height: 14),
         _ConnectionsCard(clients: state.clients),
         if (state.hudLogsEnabled) ...[
@@ -299,7 +289,11 @@ class _ActiveBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(width: 8, height: 8, color: AppColors.tertiaryContainer),
+          Container(
+            width: 8,
+            height: 8,
+            color: AppColors.tertiaryContainer,
+          ),
           const SizedBox(width: 10),
           Text(
             'SERVER ACTIVE',
@@ -424,9 +418,7 @@ class _BeaconCard extends StatelessWidget {
     final upper = hex.toUpperCase();
     final parts = <String>[];
     for (var i = 0; i < upper.length; i += 2) {
-      parts.add(
-        upper.substring(i, i + 2 > upper.length ? upper.length : i + 2),
-      );
+      parts.add(upper.substring(i, i + 2 > upper.length ? upper.length : i + 2));
     }
     return parts.join(':');
   }
@@ -445,7 +437,10 @@ class _SecureTag extends StatelessWidget {
         : AppColors.secondaryContainer;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: color, borderRadius: AppTheme.sharp),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: AppTheme.sharp,
+      ),
       child: Text(
         isHttps ? 'SECURE // TLS' : 'UNENCRYPTED',
         style: AppTextStyles.labelCaps.copyWith(
@@ -480,7 +475,8 @@ class _ConnectionsCard extends StatelessWidget {
             )
           : Column(
               children: [
-                for (final client in clients) ConnectionTile(client: client),
+                for (final client in clients)
+                  ConnectionTile(client: client),
               ],
             ),
     );
@@ -494,12 +490,10 @@ class _HostUploadCard extends StatelessWidget {
   const _HostUploadCard({
     required this.isPublishing,
     required this.onPublish,
-    required this.onPublishGallery,
   });
 
   final bool isPublishing;
   final VoidCallback onPublish;
-  final VoidCallback onPublishGallery;
 
   @override
   Widget build(BuildContext context) {
@@ -536,7 +530,7 @@ class _HostUploadCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Push files or photos from this device to the hub.',
+                    'Push files from this device to the hub.',
                     style: AppTextStyles.bodySm.copyWith(
                       color: AppColors.onSurfaceVariant,
                     ),
@@ -546,30 +540,13 @@ class _HostUploadCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: BlazeButton(
-                  label: isPublishing ? 'PUBLISHING…' : 'PUSH FILES',
-                  icon: Icons.bolt,
-                  variant: BlazeButtonVariant.cta,
-                  compact: true,
-                  isLoading: isPublishing,
-                  onPressed: isPublishing ? null : onPublish,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: BlazeButton(
-                  label: 'PUSH PHOTOS',
-                  icon: Icons.photo_library_outlined,
-                  variant: BlazeButtonVariant.outline,
-                  compact: true,
-                  enabled: !isPublishing,
-                  onPressed: isPublishing ? null : onPublishGallery,
-                ),
-              ),
-            ],
+          BlazeButton(
+            label: isPublishing ? 'PUBLISHING…' : 'PUSH FILES',
+            icon: Icons.bolt,
+            variant: BlazeButtonVariant.cta,
+            compact: true,
+            isLoading: isPublishing,
+            onPressed: isPublishing ? null : onPublish,
           ),
         ],
       ),
@@ -700,9 +677,7 @@ class _StopBar extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border(
-          top: BorderSide(color: AppColors.outlineVariant, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 1)),
       ),
       child: BlazeButton(
         label: 'STOP SERVER',

@@ -1,7 +1,7 @@
 name: blaze_drop
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.0.2+2
+version: 0.0.1+1
 
 environment:
   sdk: ^3.10.8
@@ -36,7 +36,6 @@ dependencies:
   pointycastle: ^4.0.0
   url_launcher: ^6.3.2
   package_info_plus: ^10.2.1
-  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:

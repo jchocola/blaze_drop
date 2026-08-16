@@ -106,6 +106,11 @@ class PeerTransportImpl implements PeerTransportDataSource {
         reuseAddress: true,
         reusePort: true,
       );
+      // Dart 3+ no longer enables SO_BROADCAST on bind — without this flag the
+      // send to the 255.255.255.255 broadcast address fails with
+      // `SocketException: Send failed (OS Error: Permission denied, errno = 13)`
+      // on Android/Linux, and Dart closes the socket afterwards.
+      _beaconSocket!.broadcastEnabled = true;
       _beaconSocket!.listen(
         _onDatagram,
         onError: (Object error, StackTrace stack) {
