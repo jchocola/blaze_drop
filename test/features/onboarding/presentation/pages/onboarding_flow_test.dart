@@ -5,6 +5,8 @@ import 'package:blaze_drop/core/theme/theme.dart';
 import 'package:blaze_drop/features/home/presentation/pages/home_page.dart';
 import 'package:blaze_drop/features/onboarding/domain/entities/permission_requirement.dart';
 import 'package:blaze_drop/features/onboarding/domain/use_cases/check_permissions_use_case.dart';
+import 'package:blaze_drop/features/onboarding/domain/use_cases/complete_onboarding_use_case.dart';
+import 'package:blaze_drop/features/onboarding/domain/use_cases/get_onboarding_completion_use_case.dart';
 import 'package:blaze_drop/features/onboarding/domain/use_cases/open_app_settings_use_case.dart';
 import 'package:blaze_drop/features/onboarding/domain/use_cases/request_permissions_use_case.dart';
 import 'package:blaze_drop/features/onboarding/presentation/cubit/onboarding_cubit.dart';
@@ -22,6 +24,12 @@ class _MockRequestPermissions extends Mock
     implements RequestPermissionsUseCase {}
 
 class _MockOpenAppSettings extends Mock implements OpenAppSettingsUseCase {}
+
+class _MockCompleteOnboarding extends Mock
+    implements CompleteOnboardingUseCase {}
+
+class _MockGetOnboardingCompletion extends Mock
+    implements GetOnboardingCompletionUseCase {}
 
 const _pendingPermissions = <PermissionRequirement>[
   PermissionRequirement(
@@ -47,11 +55,16 @@ void main() {
   late _MockCheckPermissions checkPermissions;
   late _MockRequestPermissions requestPermissions;
   late _MockOpenAppSettings openAppSettings;
+  late _MockCompleteOnboarding completeOnboarding;
+  late _MockGetOnboardingCompletion getOnboardingCompletion;
 
   setUp(() {
     checkPermissions = _MockCheckPermissions();
     requestPermissions = _MockRequestPermissions();
     openAppSettings = _MockOpenAppSettings();
+    completeOnboarding = _MockCompleteOnboarding();
+    getOnboardingCompletion = _MockGetOnboardingCompletion();
+    when(() => getOnboardingCompletion.execute()).thenAnswer((_) async => false);
   });
 
   OnboardingCubit buildCubit() {
@@ -59,6 +72,8 @@ void main() {
       checkPermissionsUseCase: checkPermissions,
       requestPermissionsUseCase: requestPermissions,
       openAppSettingsUseCase: openAppSettings,
+      completeOnboardingUseCase: completeOnboarding,
+      getOnboardingCompletionUseCase: getOnboardingCompletion,
       splashDelay: Duration.zero,
     );
   }
@@ -131,6 +146,25 @@ void main() {
     expect(find.text('SELECT MODE'), findsOneWidget);
   });
 
+  testWidgets(
+    'splash skips onboarding when it was already completed despite pending '
+    'permissions',
+    (tester) async {
+      when(
+        () => checkPermissions.execute(),
+      ).thenAnswer((_) async => _pendingPermissions);
+      when(
+        () => getOnboardingCompletion.execute(),
+      ).thenAnswer((_) async => true);
+
+      await tester.pumpWidget(buildApp(buildCubit()));
+      await pumpThroughSplash(tester);
+
+      expect(find.byType(OnboardingPage), findsNothing);
+      expect(find.text('SELECT MODE'), findsOneWidget);
+    },
+  );
+
   testWidgets('onboarding renders explanation cards and CTA', (tester) async {
     when(
       () => checkPermissions.execute(),
@@ -154,6 +188,7 @@ void main() {
     when(
       () => requestPermissions.execute(),
     ).thenAnswer((_) async => _grantedPermissions);
+    when(() => completeOnboarding.execute()).thenAnswer((_) async {});
 
     final cubit = buildCubit();
     await tester.pumpWidget(buildApp(cubit));
@@ -167,6 +202,32 @@ void main() {
 
     expect(find.byType(OnboardingPage), findsNothing);
     expect(find.text('SELECT MODE'), findsOneWidget);
+    verify(() => completeOnboarding.execute()).called(1);
+  });
+
+  testWidgets('CONTINUE ANYWAY lets the user into Home without granting', (
+    tester,
+  ) async {
+    when(
+      () => checkPermissions.execute(),
+    ).thenAnswer((_) async => _pendingPermissions);
+    when(() => completeOnboarding.execute()).thenAnswer((_) async {});
+
+    await tester.pumpWidget(buildApp(buildCubit()));
+    await pumpThroughSplash(tester);
+
+    // The app must not be stuck: an escape hatch is offered.
+    expect(find.text('CONTINUE ANYWAY'), findsOneWidget);
+
+    await tester.tap(find.text('CONTINUE ANYWAY'));
+    await tester.pump(); // finish begins (spinner shown)
+    await tester.pump(const Duration(milliseconds: 60)); // finish resolves
+    await tester.pump(const Duration(milliseconds: 400)); // navigate to home
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(OnboardingPage), findsNothing);
+    expect(find.text('SELECT MODE'), findsOneWidget);
+    verify(() => completeOnboarding.execute()).called(1);
   });
 
   testWidgets('splash shows brand mark and status line', (tester) async {

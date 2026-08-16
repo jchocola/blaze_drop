@@ -1,10 +1,15 @@
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../features/onboarding/data/datasources/onboarding_local_data_source.dart';
 import '../../features/onboarding/data/datasources/permission_local_data_source.dart';
+import '../../features/onboarding/data/repositories_impl/onboarding_repository_impl.dart';
 import '../../features/onboarding/data/repositories_impl/permission_repository_impl.dart';
+import '../../features/onboarding/domain/repositories/onboarding_repository.dart';
 import '../../features/onboarding/domain/repositories/permission_repository.dart';
 import '../../features/onboarding/domain/use_cases/check_permissions_use_case.dart';
+import '../../features/onboarding/domain/use_cases/complete_onboarding_use_case.dart';
+import '../../features/onboarding/domain/use_cases/get_onboarding_completion_use_case.dart';
 import '../../features/onboarding/domain/use_cases/open_app_settings_use_case.dart';
 import '../../features/onboarding/domain/use_cases/request_permissions_use_case.dart';
 import '../../features/onboarding/presentation/cubit/onboarding_cubit.dart';
@@ -92,6 +97,12 @@ Future<void> setupLocator() async {
     )
     ..registerLazySingleton<PermissionRepository>(
       () => PermissionRepositoryImpl(sl<PermissionLocalDataSource>()),
+    )
+    ..registerLazySingleton<OnboardingLocalDataSource>(
+      () => OnboardingLocalDataSource(prefs),
+    )
+    ..registerLazySingleton<OnboardingRepository>(
+      () => OnboardingRepositoryImpl(sl<OnboardingLocalDataSource>()),
     );
 
   // Module B — P2P data layer.
@@ -128,6 +139,12 @@ Future<void> setupLocator() async {
     )
     ..registerLazySingleton(
       () => OpenAppSettingsUseCase(sl<PermissionRepository>()),
+    )
+    ..registerLazySingleton(
+      () => CompleteOnboardingUseCase(sl<OnboardingRepository>()),
+    )
+    ..registerLazySingleton(
+      () => GetOnboardingCompletionUseCase(sl<OnboardingRepository>()),
     );
 
   // Domain use cases (Module B).
@@ -255,6 +272,8 @@ Future<void> setupLocator() async {
       checkPermissionsUseCase: sl<CheckPermissionsUseCase>(),
       requestPermissionsUseCase: sl<RequestPermissionsUseCase>(),
       openAppSettingsUseCase: sl<OpenAppSettingsUseCase>(),
+      completeOnboardingUseCase: sl<CompleteOnboardingUseCase>(),
+      getOnboardingCompletionUseCase: sl<GetOnboardingCompletionUseCase>(),
     ),
   );
   sl.registerFactory(

@@ -12,7 +12,9 @@ import '../cubit/onboarding_cubit.dart';
 import '../cubit/onboarding_state.dart';
 
 /// Splash screen (2s). Shows the brand mark, then routes to either the
-/// permission screen or Home based on the initial permission check.
+/// permission screen or Home based on the initial permission check. Onboarding
+/// is non-blocking: a user who already completed (or skipped) it goes straight
+/// to Home even if some permission is missing.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -67,7 +69,7 @@ class _SplashPageState extends State<SplashPage>
         if (!state.isInitialized) {
           return;
         }
-        if (state.allMandatoryGranted) {
+        if (state.shouldEnterHome) {
           context.go(AppConstants.homePath);
         } else {
           context.go(AppConstants.onboardingPath);

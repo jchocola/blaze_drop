@@ -8,6 +8,7 @@ class OnboardingState extends Equatable {
     this.permissions = const [],
     this.isInitialized = false,
     this.isRequesting = false,
+    this.completed = false,
     this.error,
   });
 
@@ -20,6 +21,10 @@ class OnboardingState extends Equatable {
   /// True while a permission request is in flight.
   final bool isRequesting;
 
+  /// True when onboarding was finished (all granted, or explicitly skipped
+  /// via "CONTINUE ANYWAY"). Persisted so later launches skip the screen.
+  final bool completed;
+
   final String? error;
 
   /// True when every mandatory permission has been granted.
@@ -27,26 +32,40 @@ class OnboardingState extends Equatable {
       permissions.every((p) => !p.isMandatory || p.isGranted);
 
   /// True when at least one permission is permanently denied (needs settings).
-  bool get hasPermanentDenial => permissions.any((p) => p.isPermanentlyDenied);
+  bool get hasPermanentDenial =>
+      permissions.any((p) => p.isPermanentlyDenied);
 
   /// True when at least one mandatory permission is still pending.
   bool get hasPendingPermission =>
       permissions.any((p) => p.isMandatory && !p.isGranted);
 
+  /// Whether the app may proceed to Home. Onboarding is **non-blocking**: the
+  /// user can always continue; missing permissions are re-requested at point
+  /// of use instead (FUNCTIONALITY.md §3).
+  bool get shouldEnterHome => completed || allMandatoryGranted;
+
   OnboardingState copyWith({
     List<PermissionRequirement>? permissions,
     bool? isInitialized,
     bool? isRequesting,
+    bool? completed,
     String? error,
   }) {
     return OnboardingState(
       permissions: permissions ?? this.permissions,
       isInitialized: isInitialized ?? this.isInitialized,
       isRequesting: isRequesting ?? this.isRequesting,
+      completed: completed ?? this.completed,
       error: error ?? this.error,
     );
   }
 
   @override
-  List<Object?> get props => [permissions, isInitialized, isRequesting, error];
+  List<Object?> get props => [
+    permissions,
+    isInitialized,
+    isRequesting,
+    completed,
+    error,
+  ];
 }

@@ -13,8 +13,9 @@ import '../widgets/permission_card.dart';
 /// Educational permission screen.
 ///
 /// Explains *why* each mandatory permission is required and provides
-/// "ENABLE ACCESS" / "RETRY ACCESS" / "OPEN SETTINGS" actions. The app does
-/// not proceed to Home until every mandatory permission is granted
+/// "ENABLE ACCESS" / "RETRY ACCESS" / "OPEN SETTINGS" actions plus a
+/// "CONTINUE ANYWAY" escape hatch. Onboarding is **non-blocking**: the user
+/// is never stuck — missing permissions are re-requested at point of use
 /// (FUNCTIONALITY.md §3).
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -48,7 +49,7 @@ class _OnboardingPageState extends State<OnboardingPage>
       listener: (context, state) {
         if (state.isInitialized &&
             !state.isRequesting &&
-            state.allMandatoryGranted) {
+            state.shouldEnterHome) {
           context.go(AppConstants.homePath);
         }
       },
@@ -191,6 +192,10 @@ class _ActionBar extends StatelessWidget {
             _ErrorBanner(message: state.error!),
             const SizedBox(height: 12),
           ],
+          if (state.hasPendingPermission && state.error == null) ...[
+            _MissingNotice(),
+            const SizedBox(height: 12),
+          ],
           if (state.hasPermanentDenial) ...[
             BlazeButton(
               label: 'OPEN SETTINGS',
@@ -216,6 +221,52 @@ class _ActionBar extends StatelessWidget {
               onPressed: state.isRequesting ? null : cubit.requestPermissions,
             ),
           ],
+          if (state.hasPendingPermission) ...[
+            const SizedBox(height: 10),
+            BlazeButton(
+              label: 'CONTINUE ANYWAY',
+              variant: BlazeButtonVariant.outline,
+              icon: Icons.arrow_forward_outlined,
+              isLoading: state.isRequesting,
+              onPressed: state.isRequesting ? null : cubit.finishOnboarding,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Tells the user the app is usable without every access and that missing
+/// permissions will be re-requested when a feature needs them.
+class _MissingNotice extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryContainer.withValues(alpha: 0.08),
+        border: Border.all(color: AppColors.outlineVariant, width: 1),
+        borderRadius: AppTheme.sharp,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline,
+            size: 18,
+            color: AppColors.primaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'You can continue without granting every access. Missing '
+              'permissions will be requested again when a feature needs them.',
+              style: AppTextStyles.bodySm.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
       ),
     );
