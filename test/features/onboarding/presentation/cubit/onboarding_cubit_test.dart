@@ -224,6 +224,27 @@ void main() {
     );
 
     blocTest<OnboardingCubit, OnboardingState>(
+      'refreshPermissions re-checks statuses without prompting',
+      build: buildCubit,
+      seed: () => const OnboardingState(
+        permissions: _grantedPermissions,
+        isInitialized: true,
+      ),
+      act: (cubit) => cubit.refreshPermissions(),
+      setUp: () {
+        when(
+          () => checkPermissions.execute(),
+        ).thenAnswer((_) async => _deniedPermissions);
+      },
+      expect: () => [
+        const OnboardingState(
+          permissions: _deniedPermissions,
+          isInitialized: true,
+        ),
+      ],
+    );
+
+    blocTest<OnboardingCubit, OnboardingState>(
       'finishOnboarding marks onboarding complete and allows continuing',
       build: buildCubit,
       act: (cubit) => cubit.finishOnboarding(),

@@ -5,6 +5,9 @@ import '../../../../core/constants/constants.dart';
 import '../../../../core/theme/theme.dart';
 import '../../../../core/widgets/blaze_button.dart';
 import '../../../../core/widgets/section_label.dart';
+import '../../../onboarding/domain/entities/permission_requirement.dart';
+import '../../../onboarding/presentation/cubit/onboarding_cubit.dart';
+import '../../../onboarding/presentation/cubit/onboarding_state.dart';
 import '../../domain/entities/app_version.dart';
 import '../cubit/settings_cubit.dart';
 import '../cubit/settings_state.dart';
@@ -25,6 +28,8 @@ class _SystemConfigPageState extends State<SystemConfigPage> {
   void initState() {
     super.initState();
     context.read<SettingsCubit>().load();
+    // Keep the permissions panel in sync with the OS on every visit.
+    context.read<OnboardingCubit>().refreshPermissions();
   }
 
   void _onSaved(BuildContext context, SettingsState state) {
@@ -57,6 +62,8 @@ class _SystemConfigPageState extends State<SystemConfigPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(AppConstants.screenMargin),
                     children: [
+                      const _PermissionsSection(),
+                      const SizedBox(height: 16),
                       _ProtocolSection(state: state),
                       const SizedBox(height: 16),
                       _SecuritySection(state: state),
@@ -167,6 +174,284 @@ class _ConfigSection extends StatelessWidget {
             child: Column(children: children),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Live runtime-permission overview (Module A). Reads the app-scoped
+/// [OnboardingCubit] so the panel shares the exact same permission state as
+/// onboarding and shows at a glance what is granted and what is missing, with
+/// quick actions to request missing access or open OS settings.
+class _PermissionsSection extends StatelessWidget {
+  const _PermissionsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<OnboardingCubit>();
+    return BlocBuilder<OnboardingCubit, OnboardingState>(
+      buildWhen: (previous, current) =>
+          previous.permissions != current.permissions ||
+          previous.isRequesting != current.isRequesting,
+      builder: (context, state) {
+        final permissions = state.permissions;
+        final granted = permissions.where((p) => p.isGranted).length;
+        return _ConfigSection(
+          title: 'ACCESS PERMISSIONS',
+          children: [
+            _PermissionSummary(
+              granted: granted,
+              total: permissions.length,
+              allGranted: permissions.isNotEmpty && state.allMandatoryGranted,
+            ),
+            if (permissions.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'No permission data yet — press REFRESH STATUS.',
+                  style: AppTextStyles.bodySm,
+                ),
+              )
+            else
+              for (final requirement in permissions)
+                _PermissionTile(requirement: requirement),
+            if (state.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  state.error!,
+                  style: AppTextStyles.bodySm.copyWith(
+                    color: AppColors.error,
+                  ),
+                ),
+              ),
+            if (state.hasPendingPermission) ...[
+              const SizedBox(height: 10),
+              BlazeButton(
+                label: state.isRequesting
+                    ? 'REQUESTING…'
+                    : 'REQUEST ACCESS',
+                variant: BlazeButtonVariant.cta,
+                icon: Icons.shield_outlined,
+                isLoading: state.isRequesting,
+                onPressed: state.isRequesting
+                    ? null
+                    : cubit.requestPermissions,
+              ),
+            ],
+            if (state.hasPermanentDenial) ...[
+              const SizedBox(height: 10),
+              BlazeButton(
+                label: 'OPEN SETTINGS',
+                variant: BlazeButtonVariant.ghost,
+                icon: Icons.settings_outlined,
+                onPressed: cubit.openSettings,
+              ),
+            ],
+            const SizedBox(height: 10),
+            BlazeButton(
+              label: 'REFRESH STATUS',
+              variant: BlazeButtonVariant.ghost,
+              icon: Icons.refresh_outlined,
+              isLoading: state.isRequesting,
+              onPressed: state.isRequesting
+                  ? null
+                  : cubit.refreshPermissions,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Compact "granted / total" summary with an overall status pill.
+class _PermissionSummary extends StatelessWidget {
+  const _PermissionSummary({
+    required this.granted,
+    required this.total,
+    required this.allGranted,
+  });
+
+  final int granted;
+  final int total;
+  final bool allGranted;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, background, foreground) = allGranted
+        ? (
+            'ALL ACCESS GRANTED',
+            AppColors.tertiaryContainer,
+            AppColors.onTertiary,
+          )
+        : total == 0
+        ? (
+            'UNKNOWN',
+            AppColors.surfaceContainerHighest,
+            AppColors.onSurfaceVariant,
+          )
+        : (
+            'SOME ACCESS MISSING',
+            AppColors.errorContainer,
+            AppColors.onErrorContainer,
+          );
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.outlineVariant, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Text(
+                  '$granted / $total',
+                  style: AppTextStyles.headlineLg.copyWith(
+                    color: AppColors.primaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'GRANTED',
+                  style: AppTextStyles.labelCaps.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: AppTheme.sharp,
+            ),
+            child: Text(
+              label,
+              style: AppTextStyles.labelCaps.copyWith(
+                fontSize: 10,
+                letterSpacing: 1.0,
+                color: foreground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single permission row: icon, title and a status tag.
+class _PermissionTile extends StatelessWidget {
+  const _PermissionTile({required this.requirement});
+
+  final PermissionRequirement requirement;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.outlineVariant, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _iconFor(requirement.category),
+            size: 20,
+            color: _accentForStatus(requirement.status),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              requirement.title.toUpperCase(),
+              style: AppTextStyles.labelCaps.copyWith(
+                color: AppColors.onSurface,
+              ),
+            ),
+          ),
+          _PermissionStatusTag(status: requirement.status),
+        ],
+      ),
+    );
+  }
+
+  IconData _iconFor(PermissionCategory category) {
+    return switch (category) {
+      PermissionCategory.location => Icons.location_on_outlined,
+      PermissionCategory.nearbyWifi => Icons.wifi_tethering_outlined,
+      PermissionCategory.notifications => Icons.notifications_none,
+      PermissionCategory.storage => Icons.photo_library_outlined,
+      PermissionCategory.localNetwork => Icons.lan_outlined,
+    };
+  }
+
+  Color _accentForStatus(PermissionStatusType status) {
+    return switch (status) {
+      PermissionStatusType.granted ||
+      PermissionStatusType.limited => AppColors.tertiaryContainer,
+      PermissionStatusType.permanentlyDenied ||
+      PermissionStatusType.restricted => AppColors.secondaryContainer,
+      PermissionStatusType.denied => AppColors.error,
+      PermissionStatusType.unknown => AppColors.onSurfaceVariant,
+    };
+  }
+}
+
+class _PermissionStatusTag extends StatelessWidget {
+  const _PermissionStatusTag({required this.status});
+
+  final PermissionStatusType status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, background, foreground) = switch (status) {
+      PermissionStatusType.granted || PermissionStatusType.limited => (
+        status == PermissionStatusType.limited ? 'LIMITED' : 'GRANTED',
+        AppColors.tertiaryContainer,
+        AppColors.onTertiary,
+      ),
+      PermissionStatusType.permanentlyDenied => (
+        'BLOCKED',
+        AppColors.secondaryContainer,
+        AppColors.onSecondary,
+      ),
+      PermissionStatusType.restricted => (
+        'RESTRICTED',
+        AppColors.secondaryContainer,
+        AppColors.onSecondary,
+      ),
+      PermissionStatusType.denied => (
+        'DENIED',
+        AppColors.errorContainer,
+        AppColors.onErrorContainer,
+      ),
+      PermissionStatusType.unknown => (
+        'PENDING',
+        AppColors.surfaceContainerHighest,
+        AppColors.onSurfaceVariant,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: AppTheme.sharp,
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.labelCaps.copyWith(
+          fontSize: 10,
+          letterSpacing: 1.0,
+          color: foreground,
+        ),
       ),
     );
   }

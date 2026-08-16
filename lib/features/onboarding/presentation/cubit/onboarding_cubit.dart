@@ -101,6 +101,30 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     }
   }
 
+  /// Re-checks the current permission statuses **without prompting** the user.
+  ///
+  /// Used by the SYSTEM CONFIG permissions panel so it stays in sync with the
+  /// OS (e.g. after the user changes a permission in system settings).
+  Future<void> refreshPermissions() async {
+    if (isClosed) {
+      return;
+    }
+    try {
+      final permissions = await checkPermissionsUseCase.execute();
+      if (!isClosed) {
+        emit(state.copyWith(permissions: permissions, error: null));
+      }
+      AppLogger.debug(
+        'Permissions refreshed: ${permissions.map((p) => '${p.id}=${p.status.name}').join(', ')}',
+      );
+    } catch (e, st) {
+      AppLogger.error('Permission refresh failed', e, st);
+      if (!isClosed) {
+        emit(state.copyWith(error: 'Failed to refresh permissions'));
+      }
+    }
+  }
+
   /// Marks onboarding as finished and lets the user continue without granting
   /// every permission. Missing permissions are re-requested at point of use.
   Future<void> finishOnboarding() async {

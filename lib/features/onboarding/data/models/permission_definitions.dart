@@ -59,11 +59,17 @@ abstract final class PermissionDefinitions {
           'when the app is in the background.',
     ),
     PermissionDefinition(
-      permission: ph.Permission.storage,
+      // Maps to READ_MEDIA_IMAGES on Android 13+ and READ_EXTERNAL_STORAGE on
+      // older versions — this is what the app actually needs (saving received
+      // photos to the gallery). Using Permission.storage here reports "denied"
+      // forever on Android 13+ and spams
+      // "No permissions found in manifest for: ...".
+      permission: ph.Permission.photos,
       category: PermissionCategory.storage,
       title: 'Storage Access',
       description:
-          'Read files you want to send and save received files on your device.',
+          'Access your device photos and media so received files can be saved '
+          'to the gallery. App-internal transfers never need this.',
     ),
   ];
 
