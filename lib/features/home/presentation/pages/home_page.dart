@@ -55,8 +55,8 @@ class HomePage extends StatelessWidget {
                   vertical: AppConstants.unit * 2,
                 ),
                 children: const [
-                  _ModeCard.p2p(),
-                  SizedBox(height: 12),
+                  // _ModeCard.p2p(),
+                  // SizedBox(height: 12),
                   _ModeCard.server(),
                 ],
               ),

@@ -577,14 +577,14 @@ class _InterfaceSection extends StatelessWidget {
     return _ConfigSection(
       title: 'INTERFACE',
       children: [
-        ConfigToggleTile(
-          icon: Icons.dark_mode_outlined,
-          title: 'Dark Mode',
-          description: 'Enforced by system protocol.',
-          value: config.darkMode,
-          enabled: false,
-          onChanged: (_) {},
-        ),
+        // ConfigToggleTile(
+        //   icon: Icons.dark_mode_outlined,
+        //   title: 'Dark Mode',
+        //   description: 'Enforced by system protocol.',
+        //   value: config.darkMode,
+        //   enabled: false,
+        //   onChanged: (_) {},
+        // ),
         ConfigToggleTile(
           icon: Icons.terminal_outlined,
           title: 'Show HUD Logs',
