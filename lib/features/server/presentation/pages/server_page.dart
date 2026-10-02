@@ -69,9 +69,7 @@ class _ServerPageState extends State<ServerPage> {
     Clipboard.setData(ClipboardData(text: value));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text('DIRECT CONNECT IP COPIED')),
-      );
+      ..showSnackBar(const SnackBar(content: Text('DIRECT CONNECT IP COPIED')));
   }
 
   void _stopServer(BuildContext context) {
@@ -86,9 +84,9 @@ class _ServerPageState extends State<ServerPage> {
   }
 
   Future<void> _downloadFile(ServerSharedFile file) async {
-    final downloaded = await context
-        .read<ServerCubit>()
-        .downloadSharedFile(file.id);
+    final downloaded = await context.read<ServerCubit>().downloadSharedFile(
+      file.id,
+    );
     if (!mounted || downloaded == null) {
       return;
     }
@@ -258,12 +256,12 @@ class _HubBody extends StatelessWidget {
         _HostUploadCard(isPublishing: state.isPublishing, onPublish: onPublish),
         const SizedBox(height: 14),
         _ConnectionsCard(clients: state.clients),
+        const SizedBox(height: 14),
+        _StorageCard(files: state.sharedFiles, onDownload: onDownload),
         if (state.hudLogsEnabled) ...[
           const SizedBox(height: 14),
           _UploadLogCard(uploads: state.uploads),
         ],
-        const SizedBox(height: 14),
-        _StorageCard(files: state.sharedFiles, onDownload: onDownload),
       ],
     );
   }
@@ -289,11 +287,7 @@ class _ActiveBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            color: AppColors.tertiaryContainer,
-          ),
+          Container(width: 8, height: 8, color: AppColors.tertiaryContainer),
           const SizedBox(width: 10),
           Text(
             'SERVER ACTIVE',
@@ -419,8 +413,7 @@ class _ConnectionsCard extends StatelessWidget {
             )
           : Column(
               children: [
-                for (final client in clients)
-                  ConnectionTile(client: client),
+                for (final client in clients) ConnectionTile(client: client),
               ],
             ),
     );
@@ -431,10 +424,7 @@ class _ConnectionsCard extends StatelessWidget {
 /// stages files from its device and pushes them into the hub so guests can
 /// download them.
 class _HostUploadCard extends StatelessWidget {
-  const _HostUploadCard({
-    required this.isPublishing,
-    required this.onPublish,
-  });
+  const _HostUploadCard({required this.isPublishing, required this.onPublish});
 
   final bool isPublishing;
   final VoidCallback onPublish;
@@ -621,7 +611,9 @@ class _StopBar extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         color: AppColors.surfaceContainerLowest,
-        border: Border(top: BorderSide(color: AppColors.outlineVariant, width: 1)),
+        border: Border(
+          top: BorderSide(color: AppColors.outlineVariant, width: 1),
+        ),
       ),
       child: BlazeButton(
         label: 'STOP SERVER',
