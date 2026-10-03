@@ -40,6 +40,10 @@ abstract interface class PeerRepository {
   /// for transfer.
   Future<List<FileItem>> pickGalleryPhotos();
 
+  /// Opens the system camera for a single shot and returns it staged for
+  /// transfer (an empty list when the shot is cancelled).
+  Future<List<FileItem>> capturePhoto();
+
   /// Sends [files] to [peer] using the established socket. Reports progress
   /// via [onProgress] (transferredBytes, totalBytes) and resolves with the
   /// final session.

@@ -134,6 +134,12 @@ void main() {
 
       when(() => filePicker.pickFiles()).thenAnswer((_) async => [staged]);
       when(
+        () => filePicker.pickGalleryPhotos(),
+      ).thenAnswer((_) async => [staged]);
+      when(
+        () => filePicker.captureCameraPhoto(),
+      ).thenAnswer((_) async => [staged]);
+      when(
         () => transport.publishFiles(any()),
       ).thenAnswer((_) async => [published]);
       when(
@@ -141,10 +147,14 @@ void main() {
       ).thenAnswer((_) async => downloaded);
 
       expect(await repository.pickHostFiles(), [staged]);
+      expect(await repository.pickHostGalleryPhotos(), [staged]);
+      expect(await repository.pickHostCameraPhoto(), [staged]);
       expect(await repository.publishFiles(const [staged]), [published]);
       expect(await repository.downloadSharedFile('photo.png'), downloaded);
 
       verify(() => filePicker.pickFiles()).called(1);
+      verify(() => filePicker.pickGalleryPhotos()).called(1);
+      verify(() => filePicker.captureCameraPhoto()).called(1);
       verify(() => transport.publishFiles(const [staged])).called(1);
       verify(() => transport.downloadSharedFile('photo.png')).called(1);
     });

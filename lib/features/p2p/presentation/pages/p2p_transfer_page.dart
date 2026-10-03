@@ -6,6 +6,7 @@ import '../../../../core/constants/constants.dart';
 import '../../../../core/theme/theme.dart';
 import '../../../../core/widgets/blaze_button.dart';
 import '../../../../core/widgets/section_label.dart';
+import '../../../../core/widgets/source_picker_sheet.dart';
 import '../../domain/entities/file_item.dart';
 import '../../domain/entities/peer_device.dart';
 import '../../domain/entities/transfer_session.dart';
@@ -19,6 +20,27 @@ import '../widgets/speedometer_gauge.dart';
 
 /// Nominal LAN throughput used to estimate transfer time before sending.
 const double _nominalMbps = 40 * 1024 * 1024; // 40 MB/s
+
+/// Opens the source sheet (Files / Gallery / Camera) and stages the picked
+/// payload into the [P2pCubit] of [context].
+Future<void> _stageFromSourceSheet(BuildContext context) async {
+  final source = await showSourcePickerSheet(
+    context,
+    title: 'STAGE PAYLOAD FROM',
+  );
+  if (source == null || !context.mounted) {
+    return;
+  }
+  final cubit = context.read<P2pCubit>();
+  switch (source) {
+    case FilePickSource.files:
+      await cubit.pickFiles();
+    case FilePickSource.gallery:
+      await cubit.pickGalleryPhotos();
+    case FilePickSource.camera:
+      await cubit.capturePhoto();
+  }
+}
 
 /// Target-acquisition + payload-staging screen (FUNCTIONALITY.md §4.3,
 /// mock "TARGET ACQUIRED"). Drives file selection, the "BLAZE SEND" action
@@ -266,7 +288,9 @@ class _PayloadSection extends StatelessWidget {
               ),
             ),
             InkWell(
-              onTap: state.isSending ? null : () => context.read<P2pCubit>().pickFiles(),
+              onTap: state.isSending
+                  ? null
+                  : () => _stageFromSourceSheet(context),
               child: Container(
                 width: 32,
                 height: 32,
@@ -308,7 +332,7 @@ class _DropZone extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => context.read<P2pCubit>().pickFiles(),
+      onTap: () => _stageFromSourceSheet(context),
       child: Container(
         height: 110,
         decoration: BoxDecoration(

@@ -33,7 +33,7 @@ BlazeDrop is a utility application for transferring files between devices in the
 1.  Splash Screen (2s) -> Check permissions.
 2.  **Permissions Required (Mandatory):**
     - `Android`: `ACCESS_FINE_LOCATION` (required for WiFi scanning), `NEARBY_WIFI_DEVICES` (API 33+), `POST_NOTIFICATIONS`, `READ_EXTERNAL_STORAGE` (for Android 10-) / `MANAGE_EXTERNAL_STORAGE` (only for Android 11+ if accessing all files, otherwise use SAF).
-    - `iOS`: `NSLocalNetworkUsageDescription` (explain peer discovery), `NSBonjourServices` (register `_blazedrop._tcp`).
+    - `iOS`: `NSLocalNetworkUsageDescription` (explain peer discovery), `NSBonjourServices` (register `_blazedrop._tcp`), `NSCameraUsageDescription` (required to capture a photo from the camera; Android needs no camera permission as it uses the capture intent).
 3.  **User Action:** If permissions are denied, show a custom educational screen explaining *why* they are needed, with a "Retry" button. Do not proceed to Home without mandatory permissions.
 
 ---
@@ -58,7 +58,10 @@ BlazeDrop is a utility application for transferring files between devices in the
 4.  Upon Acceptance, a P2P Socket is established. Both devices exchange their local IPs and ports.
 
 ### 4.3. File Selection & Sending
-- **Selection:** User taps the "+" (FAB) button. Opens system file picker (`file_picker` package). Supports **Multi-Selection**.
+- **Selection:** User taps the "+" (FAB) button or the "TAP OR DRAG FILES HERE" zone. A **source sheet** opens with three options:
+  - **Files** — system file picker (`file_picker`), **Multi-Selection**.
+  - **Gallery** — system photo picker (`image_picker`, PHPicker / Android Photo Picker), **Multi-Selection**.
+  - **Camera** — `image_picker` single shot (Android camera intent / iOS `UIImagePickerController`).
 - **Queue Management:** Selected files appear as **Horizontal Chips** at the bottom. Display file size and type icon.
 - **Send Trigger:** User taps the large **"BLAZE SEND"** button (Orange).
 - **Transfer Protocol:**
@@ -106,6 +109,7 @@ BlazeDrop is a utility application for transferring files between devices in the
   - `GET /download/{file_id}` -> Streams the file to the guest.
 
 ### 5.4. Host Management (During Server Mode)
+- **Host Upload ("HOST UPLOAD // DEPLOY ASSETS"):** "PUSH FILES" opens the same **source sheet** as P2P (Files / Gallery / Camera), then publishes the staged assets into the hub so guests can download them. Records each published file in the transfer history.
 - **Connected Clients:** Display a live list of connected IPs/User-Agents.
 - **Incoming Files:** Show a toast notification when a guest uploads a file. Auto-save to the "BlazeDrop" folder.
 - **Stop Server:** A prominent **"STOP SERVER"** button (Red/Orange) at the bottom. Pressing it terminates the server immediately and returns to the Home screen.
@@ -174,6 +178,8 @@ xml
 <string>This app needs local network access to discover nearby devices for file sharing.</string>
 <key>NSBonjourServices</key>
 <array><string>_blazedrop._tcp</string></array>
+<key>NSCameraUsageDescription</key>
+<string>BlazeDrop uses the camera so you can capture a photo and share it.</string>
 
 11. TESTING CHECKLIST (ACCEPTANCE CRITERIA)
 

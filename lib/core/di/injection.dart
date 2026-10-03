@@ -13,15 +13,18 @@ import '../../features/onboarding/domain/use_cases/get_onboarding_completion_use
 import '../../features/onboarding/domain/use_cases/open_app_settings_use_case.dart';
 import '../../features/onboarding/domain/use_cases/request_permissions_use_case.dart';
 import '../../features/onboarding/presentation/cubit/onboarding_cubit.dart';
+import '../../features/p2p/data/datasources/camera_picker_data_source.dart';
 import '../../features/p2p/data/datasources/file_picker_data_source.dart';
 import '../../features/p2p/data/datasources/gallery_picker_data_source.dart';
 import '../../features/p2p/data/datasources/node_identity_store.dart';
 import '../../features/p2p/data/datasources/peer_transport_data_source.dart';
 import '../../features/p2p/data/datasources/peer_transport_impl.dart';
+import '../../features/p2p/data/datasources/system_camera_picker.dart';
 import '../../features/p2p/data/datasources/system_file_picker.dart';
 import '../../features/p2p/data/datasources/system_gallery_picker.dart';
 import '../../features/p2p/data/repositories_impl/peer_repository_impl.dart';
 import '../../features/p2p/domain/repositories/peer_repository.dart';
+import '../../features/p2p/domain/use_cases/capture_photo_use_case.dart';
 import '../../features/p2p/domain/use_cases/get_local_node_name_use_case.dart';
 import '../../features/p2p/domain/use_cases/get_inbox_directory_use_case.dart';
 import '../../features/p2p/domain/use_cases/pick_files_use_case.dart';
@@ -45,6 +48,7 @@ import '../../features/server/data/repositories_impl/server_repository_impl.dart
 import '../../features/server/domain/repositories/server_repository.dart';
 import '../../features/server/domain/use_cases/download_shared_file_use_case.dart';
 import '../../features/server/domain/use_cases/list_shared_files_use_case.dart';
+import '../../features/server/domain/use_cases/pick_host_camera_photo_use_case.dart';
 import '../../features/server/domain/use_cases/pick_host_files_use_case.dart';
 import '../../features/server/domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import '../../features/server/domain/use_cases/publish_files_use_case.dart';
@@ -113,6 +117,7 @@ Future<void> setupLocator() async {
   sl
     ..registerLazySingleton<FilePickerDataSource>(SystemFilePicker.new)
     ..registerLazySingleton<GalleryPickerDataSource>(SystemGalleryPicker.new)
+    ..registerLazySingleton<CameraPickerDataSource>(SystemCameraPicker.new)
     ..registerLazySingleton<PeerTransportDataSource>(
       () => PeerTransportImpl(
         nodeId: nodeId,
@@ -126,6 +131,7 @@ Future<void> setupLocator() async {
         identityStore: sl<NodeIdentityStore>(),
         filePicker: sl<FilePickerDataSource>(),
         galleryPicker: sl<GalleryPickerDataSource>(),
+        cameraPicker: sl<CameraPickerDataSource>(),
       ),
     );
 
@@ -171,6 +177,7 @@ Future<void> setupLocator() async {
     ..registerLazySingleton(
       () => PickGalleryPhotosUseCase(sl<PeerRepository>()),
     )
+    ..registerLazySingleton(() => CapturePhotoUseCase(sl<PeerRepository>()))
     ..registerLazySingleton(() => SendFilesUseCase(sl<PeerRepository>()))
     ..registerLazySingleton(
       () => RespondToRequestUseCase(sl<PeerRepository>()),
@@ -254,6 +261,9 @@ Future<void> setupLocator() async {
       () => PickHostGalleryPhotosUseCase(sl<ServerRepository>()),
     )
     ..registerLazySingleton(
+      () => PickHostCameraPhotoUseCase(sl<ServerRepository>()),
+    )
+    ..registerLazySingleton(
       () => PublishFilesUseCase(sl<ServerRepository>()),
     )
     ..registerLazySingleton(
@@ -285,6 +295,8 @@ Future<void> setupLocator() async {
       watchIncomingRequestsUseCase: sl<WatchIncomingRequestsUseCase>(),
       watchTransferUpdatesUseCase: sl<WatchTransferUpdatesUseCase>(),
       pickFilesUseCase: sl<PickFilesUseCase>(),
+      pickGalleryPhotosUseCase: sl<PickGalleryPhotosUseCase>(),
+      capturePhotoUseCase: sl<CapturePhotoUseCase>(),
       sendFilesUseCase: sl<SendFilesUseCase>(),
       respondToRequestUseCase: sl<RespondToRequestUseCase>(),
     ),
@@ -307,6 +319,8 @@ Future<void> setupLocator() async {
       watchUploadsUseCase: sl<WatchUploadsUseCase>(),
       listSharedFilesUseCase: sl<ListSharedFilesUseCase>(),
       pickHostFilesUseCase: sl<PickHostFilesUseCase>(),
+      pickHostGalleryPhotosUseCase: sl<PickHostGalleryPhotosUseCase>(),
+      pickHostCameraPhotoUseCase: sl<PickHostCameraPhotoUseCase>(),
       publishFilesUseCase: sl<PublishFilesUseCase>(),
       downloadSharedFileUseCase: sl<DownloadSharedFileUseCase>(),
       settingsRepository: sl<SettingsRepository>(),

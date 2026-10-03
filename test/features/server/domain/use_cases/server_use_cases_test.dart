@@ -7,7 +7,9 @@ import 'package:blaze_drop/features/server/domain/entities/server_shared_file.da
 import 'package:blaze_drop/features/server/domain/repositories/server_repository.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_camera_photo_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
@@ -109,6 +111,28 @@ void main() {
       final result = await PickHostFilesUseCase(repository).execute();
 
       expect(result, [_hostFile]);
+    });
+
+    test('PickHostGalleryPhotosUseCase returns the staged photos', () async {
+      when(() => repository.pickHostGalleryPhotos()).thenAnswer((_) async => [
+        _hostFile,
+      ]);
+
+      final result = await PickHostGalleryPhotosUseCase(repository).execute();
+
+      expect(result, [_hostFile]);
+      verify(() => repository.pickHostGalleryPhotos()).called(1);
+    });
+
+    test('PickHostCameraPhotoUseCase returns the captured shot', () async {
+      when(() => repository.pickHostCameraPhoto()).thenAnswer((_) async => [
+        _hostFile,
+      ]);
+
+      final result = await PickHostCameraPhotoUseCase(repository).execute();
+
+      expect(result, [_hostFile]);
+      verify(() => repository.pickHostCameraPhoto()).called(1);
     });
 
     test('PublishFilesUseCase publishes the staged files', () async {

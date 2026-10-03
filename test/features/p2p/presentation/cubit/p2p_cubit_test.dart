@@ -4,8 +4,10 @@ import 'package:blaze_drop/features/p2p/domain/entities/file_item.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/incoming_connection_request.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/peer_device.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/transfer_session.dart';
+import 'package:blaze_drop/features/p2p/domain/use_cases/capture_photo_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/get_local_node_name_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/pick_files_use_case.dart';
+import 'package:blaze_drop/features/p2p/domain/use_cases/pick_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/respond_to_request_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/send_files_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/start_discovery_use_case.dart';
@@ -32,6 +34,10 @@ class _MockWatchTransfers extends Mock implements WatchTransferUpdatesUseCase {}
 
 class _MockPickFiles extends Mock implements PickFilesUseCase {}
 
+class _MockPickGalleryPhotos extends Mock implements PickGalleryPhotosUseCase {}
+
+class _MockCapturePhoto extends Mock implements CapturePhotoUseCase {}
+
 class _MockSendFiles extends Mock implements SendFilesUseCase {}
 
 class _MockRespondToRequest extends Mock implements RespondToRequestUseCase {}
@@ -56,6 +62,8 @@ void main() {
   late _MockWatchIncoming watchIncoming;
   late _MockWatchTransfers watchTransfers;
   late _MockPickFiles pickFiles;
+  late _MockPickGalleryPhotos pickGalleryPhotos;
+  late _MockCapturePhoto capturePhoto;
   late _MockSendFiles sendFiles;
   late _MockRespondToRequest respondToRequest;
   late StreamController<List<PeerDevice>> peersController;
@@ -82,6 +90,8 @@ void main() {
     watchIncoming = _MockWatchIncoming();
     watchTransfers = _MockWatchTransfers();
     pickFiles = _MockPickFiles();
+    pickGalleryPhotos = _MockPickGalleryPhotos();
+    capturePhoto = _MockCapturePhoto();
     sendFiles = _MockSendFiles();
     respondToRequest = _MockRespondToRequest();
 
@@ -118,6 +128,8 @@ void main() {
       watchIncomingRequestsUseCase: watchIncoming,
       watchTransferUpdatesUseCase: watchTransfers,
       pickFilesUseCase: pickFiles,
+      pickGalleryPhotosUseCase: pickGalleryPhotos,
+      capturePhotoUseCase: capturePhoto,
       sendFilesUseCase: sendFiles,
       respondToRequestUseCase: respondToRequest,
     );
@@ -192,6 +204,34 @@ void main() {
       await cubit.pickFiles();
 
       expect(cubit.state.selectedFiles, const [_fileA, _fileB]);
+
+      await cubit.close();
+    });
+
+    test('pickGalleryPhotos stages library photos', () async {
+      final cubit = buildCubit();
+      await cubit.initialize();
+
+      when(
+        () => pickGalleryPhotos.execute(),
+      ).thenAnswer((_) async => const [_fileA]);
+      await cubit.pickGalleryPhotos();
+
+      expect(cubit.state.selectedFiles, const [_fileA]);
+
+      await cubit.close();
+    });
+
+    test('capturePhoto stages the captured shot', () async {
+      final cubit = buildCubit();
+      await cubit.initialize();
+
+      when(
+        () => capturePhoto.execute(),
+      ).thenAnswer((_) async => const [_fileB]);
+      await cubit.capturePhoto();
+
+      expect(cubit.state.selectedFiles, const [_fileB]);
 
       await cubit.close();
     });

@@ -13,7 +13,9 @@ import 'package:blaze_drop/features/server/domain/entities/server_shared_file.da
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_camera_photo_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
@@ -42,6 +44,12 @@ class _MockWatchUploads extends Mock implements WatchUploadsUseCase {}
 class _MockListFiles extends Mock implements ListSharedFilesUseCase {}
 
 class _MockPickHostFiles extends Mock implements PickHostFilesUseCase {}
+
+class _MockPickHostGalleryPhotos extends Mock
+    implements PickHostGalleryPhotosUseCase {}
+
+class _MockPickHostCameraPhoto extends Mock
+    implements PickHostCameraPhotoUseCase {}
 
 class _MockPublishFiles extends Mock implements PublishFilesUseCase {}
 
@@ -105,6 +113,8 @@ void main() {
     late _MockWatchUploads watchUploads;
     late _MockListFiles listFiles;
     late _MockPickHostFiles pickHostFiles;
+    late _MockPickHostGalleryPhotos pickHostGalleryPhotos;
+    late _MockPickHostCameraPhoto pickHostCameraPhoto;
     late _MockPublishFiles publishFiles;
     late _MockDownloadSharedFile downloadSharedFile;
     late _MockSettingsRepository settingsRepository;
@@ -122,6 +132,8 @@ void main() {
       watchUploads = _MockWatchUploads();
       listFiles = _MockListFiles();
       pickHostFiles = _MockPickHostFiles();
+      pickHostGalleryPhotos = _MockPickHostGalleryPhotos();
+      pickHostCameraPhoto = _MockPickHostCameraPhoto();
       publishFiles = _MockPublishFiles();
       downloadSharedFile = _MockDownloadSharedFile();
       settingsRepository = _MockSettingsRepository();
@@ -175,6 +187,8 @@ void main() {
         watchUploadsUseCase: watchUploads,
         listSharedFilesUseCase: listFiles,
         pickHostFilesUseCase: pickHostFiles,
+        pickHostGalleryPhotosUseCase: pickHostGalleryPhotos,
+        pickHostCameraPhotoUseCase: pickHostCameraPhoto,
         publishFilesUseCase: publishFiles,
         downloadSharedFileUseCase: downloadSharedFile,
         settingsRepository: settingsRepository,
@@ -361,6 +375,44 @@ void main() {
         ServerState(isPublishing: true),
         ServerState(isPublishing: true, error: 'Failed to publish files'),
         ServerState(isPublishing: false, error: 'Failed to publish files'),
+      ],
+    );
+
+    blocTest<ServerCubit, ServerState>(
+      'pickAndPublishGalleryPhotos publishes staged photos',
+      build: buildCubit,
+      act: (cubit) => cubit.pickAndPublishGalleryPhotos(),
+      setUp: () {
+        when(
+          () => pickHostGalleryPhotos.execute(),
+        ).thenAnswer((_) async => const [_hostFile]);
+        when(
+          () => publishFiles.execute(any()),
+        ).thenAnswer((_) async => const [_sharedFile]);
+      },
+      expect: () => const [
+        ServerState(isPublishing: true),
+        ServerState(isPublishing: false),
+        ServerState(isPublishing: false, sharedFiles: [_sharedFile]),
+      ],
+    );
+
+    blocTest<ServerCubit, ServerState>(
+      'pickAndPublishCameraPhoto publishes the captured shot',
+      build: buildCubit,
+      act: (cubit) => cubit.pickAndPublishCameraPhoto(),
+      setUp: () {
+        when(
+          () => pickHostCameraPhoto.execute(),
+        ).thenAnswer((_) async => const [_hostFile]);
+        when(
+          () => publishFiles.execute(any()),
+        ).thenAnswer((_) async => const [_sharedFile]);
+      },
+      expect: () => const [
+        ServerState(isPublishing: true),
+        ServerState(isPublishing: false),
+        ServerState(isPublishing: false, sharedFiles: [_sharedFile]),
       ],
     );
 

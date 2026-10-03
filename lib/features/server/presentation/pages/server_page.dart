@@ -7,6 +7,7 @@ import '../../../../core/constants/constants.dart';
 import '../../../../core/theme/theme.dart';
 import '../../../../core/widgets/blaze_button.dart';
 import '../../../../core/widgets/section_label.dart';
+import '../../../../core/widgets/source_picker_sheet.dart';
 import '../../domain/entities/connected_client.dart';
 import '../../domain/entities/downloaded_file.dart';
 import '../../domain/entities/server_session.dart';
@@ -79,8 +80,25 @@ class _ServerPageState extends State<ServerPage> {
     }
   }
 
-  void _publishFiles(BuildContext context) {
-    context.read<ServerCubit>().pickAndPublishFiles();
+  /// Asks the host where the assets come from, then publishes them into the
+  /// hub (FUNCTIONALITY.md §5.4).
+  Future<void> _publishFiles(BuildContext context) async {
+    final source = await showSourcePickerSheet(
+      context,
+      title: 'DEPLOY ASSETS FROM',
+    );
+    if (source == null || !context.mounted) {
+      return;
+    }
+    final cubit = context.read<ServerCubit>();
+    switch (source) {
+      case FilePickSource.files:
+        await cubit.pickAndPublishFiles();
+      case FilePickSource.gallery:
+        await cubit.pickAndPublishGalleryPhotos();
+      case FilePickSource.camera:
+        await cubit.pickAndPublishCameraPhoto();
+    }
   }
 
   Future<void> _downloadFile(ServerSharedFile file) async {
@@ -464,7 +482,7 @@ class _HostUploadCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Push files from this device to the hub.',
+                    'Push files, photos or a shot from this device to the hub.',
                     style: AppTextStyles.bodySm.copyWith(
                       color: AppColors.onSurfaceVariant,
                     ),

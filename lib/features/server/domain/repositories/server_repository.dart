@@ -41,6 +41,10 @@ abstract interface class ServerRepository {
   /// publication.
   Future<List<HostPublishFile>> pickHostGalleryPhotos();
 
+  /// Opens the host device camera for a single shot and returns it staged for
+  /// publication (an empty list when the shot is cancelled).
+  Future<List<HostPublishFile>> pickHostCameraPhoto();
+
   /// Copies [files] from the host device into the hub's shared storage so
   /// guests can download them. Returns the resulting shareable files.
   Future<List<ServerSharedFile>> publishFiles(List<HostPublishFile> files);

@@ -41,6 +41,8 @@
 	<string>BlazeDrop saves photos you download into your photo library so you can view them in the gallery.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>BlazeDrop needs to add downloaded photos to your photo library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>BlazeDrop uses the camera so you can capture a photo and share it with a nearby device or your relay hub.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

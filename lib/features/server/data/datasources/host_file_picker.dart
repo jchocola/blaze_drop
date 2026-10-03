@@ -12,6 +12,10 @@ abstract interface class HostFilePicker {
   /// Opens the system photo-library picker (multi-select) and returns the
   /// chosen photos staged for publication.
   Future<List<HostPublishFile>> pickGalleryPhotos();
+
+  /// Opens the system camera for a single shot and returns it staged for
+  /// publication (an empty list when the shot is cancelled).
+  Future<List<HostPublishFile>> captureCameraPhoto();
 }
 
 /// Concrete [HostFilePicker] backed by `file_picker` + `image_picker`
@@ -52,11 +56,25 @@ class SystemHostFilePicker implements HostFilePicker {
   @override
   Future<List<HostPublishFile>> pickGalleryPhotos() async {
     final picked = await ImagePicker().pickMultiImage();
-    if (picked.isEmpty) {
+    return _stagePhotos(picked);
+  }
+
+  @override
+  Future<List<HostPublishFile>> captureCameraPhoto() async {
+    final photo = await ImagePicker().pickImage(source: ImageSource.camera);
+    if (photo == null) {
+      return const [];
+    }
+    return _stagePhotos([photo]);
+  }
+
+  /// Maps `image_picker` files into staged [HostPublishFile]s.
+  Future<List<HostPublishFile>> _stagePhotos(List<XFile> photos) async {
+    if (photos.isEmpty) {
       return const [];
     }
     final items = <HostPublishFile>[];
-    for (final photo in picked) {
+    for (final photo in photos) {
       final path = photo.path;
       if (path.isEmpty) {
         continue;

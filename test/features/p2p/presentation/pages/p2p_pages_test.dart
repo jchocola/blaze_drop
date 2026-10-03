@@ -5,8 +5,10 @@ import 'package:blaze_drop/features/p2p/domain/entities/file_item.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/incoming_connection_request.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/peer_device.dart';
 import 'package:blaze_drop/features/p2p/domain/entities/transfer_session.dart';
+import 'package:blaze_drop/features/p2p/domain/use_cases/capture_photo_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/get_local_node_name_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/pick_files_use_case.dart';
+import 'package:blaze_drop/features/p2p/domain/use_cases/pick_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/respond_to_request_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/send_files_use_case.dart';
 import 'package:blaze_drop/features/p2p/domain/use_cases/start_discovery_use_case.dart';
@@ -35,6 +37,10 @@ class _MockWatchIncoming extends Mock implements WatchIncomingRequestsUseCase {}
 class _MockWatchTransfers extends Mock implements WatchTransferUpdatesUseCase {}
 
 class _MockPickFiles extends Mock implements PickFilesUseCase {}
+
+class _MockPickGalleryPhotos extends Mock implements PickGalleryPhotosUseCase {}
+
+class _MockCapturePhoto extends Mock implements CapturePhotoUseCase {}
 
 class _MockSendFiles extends Mock implements SendFilesUseCase {}
 
@@ -92,6 +98,8 @@ void main() {
     final watchIncoming = _MockWatchIncoming();
     final watchTransfers = _MockWatchTransfers();
     final pickFiles = _MockPickFiles();
+    final pickGalleryPhotos = _MockPickGalleryPhotos();
+    final capturePhoto = _MockCapturePhoto();
     final sendFiles = _MockSendFiles();
     final respondToRequest = _MockRespondToRequest();
 
@@ -108,6 +116,10 @@ void main() {
       () => watchTransfers.execute(),
     ).thenAnswer((_) => transfersController.stream);
     when(() => pickFiles.execute()).thenAnswer((_) async => const [_file]);
+    when(
+      () => pickGalleryPhotos.execute(),
+    ).thenAnswer((_) async => const [_file]);
+    when(() => capturePhoto.execute()).thenAnswer((_) async => const [_file]);
     when(
       () => sendFiles.execute(any(), any()),
     ).thenAnswer((_) async {
@@ -143,6 +155,8 @@ void main() {
       watchIncomingRequestsUseCase: watchIncoming,
       watchTransferUpdatesUseCase: watchTransfers,
       pickFilesUseCase: pickFiles,
+      pickGalleryPhotosUseCase: pickGalleryPhotos,
+      capturePhotoUseCase: capturePhoto,
       sendFilesUseCase: sendFiles,
       respondToRequestUseCase: respondToRequest,
     );
@@ -238,6 +252,33 @@ void main() {
     expect(find.text('system_override.zip'), findsOneWidget);
     expect(find.text('420 MB'), findsWidgets);
     expect(find.text('BLAZE SEND'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await cubit.close();
+  });
+
+  testWidgets('transfer page source sheet stages gallery photos', (
+    tester,
+  ) async {
+    final cubit = buildCubit();
+    await cubit.initialize();
+    cubit.selectTarget(_peer);
+
+    await tester.pumpWidget(wrap(cubit, const P2pTransferPage()));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+
+    await tester.tap(find.text('TAP OR DRAG FILES HERE'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('STAGE PAYLOAD FROM'), findsOneWidget);
+    expect(find.text('GALLERY'), findsOneWidget);
+    expect(find.text('CAMERA'), findsOneWidget);
+
+    await tester.tap(find.text('GALLERY'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.selectedFiles, const [_file]);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await cubit.close();

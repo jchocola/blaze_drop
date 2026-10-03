@@ -10,11 +10,14 @@ import '../../../../core/utils/file_utils.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/connected_client.dart';
 import '../../domain/entities/downloaded_file.dart';
+import '../../domain/entities/host_publish_file.dart';
 import '../../domain/entities/server_session.dart';
 import '../../domain/entities/server_upload_event.dart';
 import '../../domain/use_cases/download_shared_file_use_case.dart';
 import '../../domain/use_cases/list_shared_files_use_case.dart';
+import '../../domain/use_cases/pick_host_camera_photo_use_case.dart';
 import '../../domain/use_cases/pick_host_files_use_case.dart';
+import '../../domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import '../../domain/use_cases/publish_files_use_case.dart';
 import '../../domain/use_cases/refresh_server_use_case.dart';
 import '../../domain/use_cases/start_server_use_case.dart';
@@ -39,6 +42,8 @@ class ServerCubit extends Cubit<ServerState> {
     required this.watchUploadsUseCase,
     required this.listSharedFilesUseCase,
     required this.pickHostFilesUseCase,
+    required this.pickHostGalleryPhotosUseCase,
+    required this.pickHostCameraPhotoUseCase,
     required this.publishFilesUseCase,
     required this.downloadSharedFileUseCase,
     required SettingsRepository settingsRepository,
@@ -55,6 +60,8 @@ class ServerCubit extends Cubit<ServerState> {
   final WatchUploadsUseCase watchUploadsUseCase;
   final ListSharedFilesUseCase listSharedFilesUseCase;
   final PickHostFilesUseCase pickHostFilesUseCase;
+  final PickHostGalleryPhotosUseCase pickHostGalleryPhotosUseCase;
+  final PickHostCameraPhotoUseCase pickHostCameraPhotoUseCase;
   final PublishFilesUseCase publishFilesUseCase;
   final DownloadSharedFileUseCase downloadSharedFileUseCase;
   final SettingsRepository _settingsRepository;
@@ -204,14 +211,31 @@ class ServerCubit extends Cubit<ServerState> {
 
   /// Opens the host picker and publishes the chosen files into the hub so
   /// guests can download them (FUNCTIONALITY.md §5.4).
-  Future<void> pickAndPublishFiles() async {
+  Future<void> pickAndPublishFiles() =>
+      _pickAndPublish(pickHostFilesUseCase.execute);
+
+  /// Opens the host photo library and publishes the chosen photos into the
+  /// hub so guests can download them (FUNCTIONALITY.md §5.4).
+  Future<void> pickAndPublishGalleryPhotos() =>
+      _pickAndPublish(pickHostGalleryPhotosUseCase.execute);
+
+  /// Opens the host camera and publishes the captured shot into the hub so
+  /// guests can download it (FUNCTIONALITY.md §5.4).
+  Future<void> pickAndPublishCameraPhoto() =>
+      _pickAndPublish(pickHostCameraPhotoUseCase.execute);
+
+  /// Stages the files returned by [pick] into the hub, then records them in
+  /// the transfer history.
+  Future<void> _pickAndPublish(
+    Future<List<HostPublishFile>> Function() pick,
+  ) async {
     if (state.isPublishing) {
       return;
     }
     emit(state.copyWith(isPublishing: true, error: null));
     var published = false;
     try {
-      final files = await pickHostFilesUseCase.execute();
+      final files = await pick();
       if (files.isNotEmpty && !isClosed) {
         final result = await publishFilesUseCase.execute(files);
         published = true;

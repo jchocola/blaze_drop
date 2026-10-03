@@ -14,7 +14,9 @@ import 'package:blaze_drop/features/server/domain/entities/server_shared_file.da
 import 'package:blaze_drop/features/server/domain/entities/server_upload_event.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/download_shared_file_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/list_shared_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_camera_photo_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/pick_host_files_use_case.dart';
+import 'package:blaze_drop/features/server/domain/use_cases/pick_host_gallery_photos_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/publish_files_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/refresh_server_use_case.dart';
 import 'package:blaze_drop/features/server/domain/use_cases/start_server_use_case.dart';
@@ -45,6 +47,12 @@ class _MockWatchUploads extends Mock implements WatchUploadsUseCase {}
 class _MockListFiles extends Mock implements ListSharedFilesUseCase {}
 
 class _MockPickHostFiles extends Mock implements PickHostFilesUseCase {}
+
+class _MockPickHostGalleryPhotos extends Mock
+    implements PickHostGalleryPhotosUseCase {}
+
+class _MockPickHostCameraPhoto extends Mock
+    implements PickHostCameraPhotoUseCase {}
 
 class _MockPublishFiles extends Mock implements PublishFilesUseCase {}
 
@@ -87,6 +95,8 @@ void main() {
   late _MockWatchUploads watchUploads;
   late _MockListFiles listFiles;
   late _MockPickHostFiles pickHostFiles;
+  late _MockPickHostGalleryPhotos pickHostGalleryPhotos;
+  late _MockPickHostCameraPhoto pickHostCameraPhoto;
   late _MockPublishFiles publishFiles;
   late _MockDownloadSharedFile downloadSharedFile;
   late _MockSettingsRepository settingsRepository;
@@ -104,6 +114,8 @@ void main() {
     watchUploads = _MockWatchUploads();
     listFiles = _MockListFiles();
     pickHostFiles = _MockPickHostFiles();
+    pickHostGalleryPhotos = _MockPickHostGalleryPhotos();
+    pickHostCameraPhoto = _MockPickHostCameraPhoto();
     publishFiles = _MockPublishFiles();
     downloadSharedFile = _MockDownloadSharedFile();
     settingsRepository = _MockSettingsRepository();
@@ -157,6 +169,8 @@ void main() {
       watchUploadsUseCase: watchUploads,
       listSharedFilesUseCase: listFiles,
       pickHostFilesUseCase: pickHostFiles,
+      pickHostGalleryPhotosUseCase: pickHostGalleryPhotos,
+      pickHostCameraPhotoUseCase: pickHostCameraPhoto,
       publishFilesUseCase: publishFiles,
       downloadSharedFileUseCase: downloadSharedFile,
       settingsRepository: settingsRepository,
@@ -254,9 +268,37 @@ void main() {
     expect(find.text('PUSH FILES'), findsOneWidget);
 
     await tester.tap(find.text('PUSH FILES'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+
+    // The source sheet offers all three staging sources.
+    expect(find.text('DEPLOY ASSETS FROM'), findsOneWidget);
+    expect(find.text('FILES'), findsOneWidget);
+    expect(find.text('GALLERY'), findsOneWidget);
+    expect(find.text('CAMERA'), findsOneWidget);
+
+    await tester.tap(find.text('FILES'));
+    await tester.pumpAndSettle();
 
     verify(() => pickHostFiles.execute()).called(1);
+  });
+
+  testWidgets('host upload sheet publishes gallery photos', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    when(
+      () => pickHostGalleryPhotos.execute(),
+    ).thenAnswer((_) async => const []);
+    final cubit = buildCubit();
+    await tester.pumpWidget(buildApp(cubit));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    await tester.tap(find.text('PUSH FILES'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('GALLERY'));
+    await tester.pumpAndSettle();
+
+    verify(() => pickHostGalleryPhotos.execute()).called(1);
   });
 
   testWidgets('GET on a shared file pulls it to the host received folder', (

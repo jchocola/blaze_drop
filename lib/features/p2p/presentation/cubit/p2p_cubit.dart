@@ -7,8 +7,10 @@ import '../../domain/entities/file_item.dart';
 import '../../domain/entities/incoming_connection_request.dart';
 import '../../domain/entities/peer_device.dart';
 import '../../domain/entities/transfer_session.dart';
+import '../../domain/use_cases/capture_photo_use_case.dart';
 import '../../domain/use_cases/get_local_node_name_use_case.dart';
 import '../../domain/use_cases/pick_files_use_case.dart';
+import '../../domain/use_cases/pick_gallery_photos_use_case.dart';
 import '../../domain/use_cases/respond_to_request_use_case.dart';
 import '../../domain/use_cases/send_files_use_case.dart';
 import '../../domain/use_cases/start_discovery_use_case.dart';
@@ -34,6 +36,8 @@ class P2pCubit extends Cubit<P2pState> {
     required this.watchIncomingRequestsUseCase,
     required this.watchTransferUpdatesUseCase,
     required this.pickFilesUseCase,
+    required this.pickGalleryPhotosUseCase,
+    required this.capturePhotoUseCase,
     required this.sendFilesUseCase,
     required this.respondToRequestUseCase,
   }) : super(const P2pState());
@@ -45,6 +49,8 @@ class P2pCubit extends Cubit<P2pState> {
   final WatchIncomingRequestsUseCase watchIncomingRequestsUseCase;
   final WatchTransferUpdatesUseCase watchTransferUpdatesUseCase;
   final PickFilesUseCase pickFilesUseCase;
+  final PickGalleryPhotosUseCase pickGalleryPhotosUseCase;
+  final CapturePhotoUseCase capturePhotoUseCase;
   final SendFilesUseCase sendFilesUseCase;
   final RespondToRequestUseCase respondToRequestUseCase;
 
@@ -158,9 +164,20 @@ class P2pCubit extends Cubit<P2pState> {
   }
 
   /// Opens the native file picker and stages the chosen files.
-  Future<void> pickFiles() async {
+  Future<void> pickFiles() => _stagePicked(pickFilesUseCase.execute);
+
+  /// Opens the system photo library and stages the chosen photos.
+  Future<void> pickGalleryPhotos() =>
+      _stagePicked(pickGalleryPhotosUseCase.execute);
+
+  /// Opens the system camera and stages the captured shot.
+  Future<void> capturePhoto() => _stagePicked(capturePhotoUseCase.execute);
+
+  /// Merges the files returned by [pick] into the staged payload, skipping
+  /// duplicates already staged.
+  Future<void> _stagePicked(Future<List<FileItem>> Function() pick) async {
     try {
-      final picked = await pickFilesUseCase.execute();
+      final picked = await pick();
       if (picked.isEmpty || isClosed) {
         return;
       }
